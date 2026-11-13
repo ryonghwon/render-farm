@@ -1,0 +1,187 @@
+#!/usr/bin/env node
+const fs = require('node:fs')
+const path = require('node:path')
+const os = require('node:os')
+const zlib = require('node:zlib')
+
+const argv = process.argv.slice(2)
+const opts = {}
+let scene = null
+for (let i = 0; i < argv.length; i++) {
+  const a = argv[i]
+  if (a.startsWith('-') && i + 1 < argv.length) {
+    opts[a] = argv[++i]
+  } else scene = a
+}
+
+const out = (s) => process.stdout.write(s + '\n')
+const err = (s) => process.stderr.write(s + '\n')
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+
+process.on('SIGTERM', () => {
+  err('// Warning: Render interrupted')
+  process.exit(143)
+})
+
+const crcTable = (() => {
+  const t = new Uint32Array(256)
+  for (let n = 0; n < 256; n++) {
+    let c = n
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1
+    t[n] = c >>> 0
+  }
+  return t
+})()
+function crc32(buf) {
+  let c = 0xffffffff
+  for (const b of buf) c = crcTable[(c ^ b) & 0xff] ^ (c >>> 8)
+  return (c ^ 0xffffffff) >>> 0
+}
+function chunk(type, data) {
+  const len = Buffer.alloc(4)
+  len.writeUInt32BE(data.length)
+  const td = Buffer.concat([Buffer.from(type), data])
+  const crc = Buffer.alloc(4)
+  crc.writeUInt32BE(crc32(td))
+  return Buffer.concat([len, td, crc])
+}
+function png(w, h, frame, total, hue) {
+  const raw = Buffer.alloc((w * 3 + 1) * h)
+  const t = total > 1 ? frame / total : 0
+  const cx = w * (0.15 + 0.7 * t)
+  const cy = h * 0.55
+  for (let y = 0; y < h; y++) {
+    raw[y * (w * 3 + 1)] = 0
+    for (let x = 0; x < w; x++) {
+      const o = y * (w * 3 + 1) + 1 + x * 3
+      const g = y / h
+      let r = 18 + 40 * g + 30 * Math.sin(hue)
+      let gg = 22 + 30 * g
+      let b = 40 + 90 * g + 30 * Math.cos(hue)
+      const d = Math.hypot(x - cx, y - cy)
+      if (d < h * 0.18) {
+        const k = 1 - d / (h * 0.18)
+        r += 200 * k
+        gg += 150 * k
+        b += 60 * k
+      }
+      if (y > h * 0.78) {
+        r = 30
+        gg = 34
+        b = 40
+      }
+      raw[o] = Math.max(0, Math.min(255, r))
+      raw[o + 1] = Math.max(0, Math.min(255, gg))
+      raw[o + 2] = Math.max(0, Math.min(255, b))
+    }
+  }
+  const ihdr = Buffer.alloc(13)
+  ihdr.writeUInt32BE(w, 0)
+  ihdr.writeUInt32BE(h, 4)
+  ihdr[8] = 8
+  ihdr[9] = 2
+  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw)), chunk('IEND', Buffer.alloc(0))])
+}
+
+async function main() {
+  out('Starting "' + process.argv[1] + '"')
+  if (!scene || !fs.existsSync(scene)) {
+    err('// Error: Cannot open file: ' + scene)
+    process.exit(211)
+  }
+  const text = fs.readFileSync(scene, 'utf8')
+  const directive = /\/\/MOCK\s+(.*)/.exec(text)
+  const cfg = {}
+  if (directive) for (const kv of directive[1].split(/\s+/)) {
+    const [k, v] = kv.split('=')
+    if (k) cfg[k] = v === undefined ? '1' : v
+  }
+  const speed = Number(cfg.speed || 120)
+  const scriptDir = (process.env.MAYA_SCRIPT_PATH || '').split(path.delimiter)[0]
+  const bootPath = scriptDir ? path.join(scriptDir, 'rqBoot.mel') : ''
+  const boot = bootPath && fs.existsSync(bootPath) ? fs.readFileSync(bootPath, 'utf8') : ''
+  let ext = 'iff'
+  const ai = /ai_translator "(\w+)"/.exec(boot)
+  const key = /imfPluginKey" "(\w+)"/.exec(boot)
+  if (opts['-r'] === 'arnold' && ai) ext = ai[1] === 'jpeg' ? 'jpg' : ai[1]
+  else if (key) ext = key[1]
+  else {
+    const sceneFmt = /ai_translator" -type "string" "(\w+)"/.exec(text)
+    if (sceneFmt) ext = sceneFmt[1]
+  }
+  const pad = Number((/extensionPadding" (\d+)/.exec(boot) || [])[1] || 4)
+  const s = Number(opts['-s'] ?? 1)
+  const e = Number(opts['-e'] ?? s)
+  const b = Number(opts['-b'] ?? 1)
+  const rd0 = opts['-rd'] || path.join(path.dirname(scene), 'images')
+  const rd = cfg.wrongdir ? path.join(rd0, '..', '_elsewhere') : rd0
+  const im = opts['-im'] || path.basename(scene).replace(/\.\w+$/, '')
+  const markers = !!boot && opts['-preFrame'] === 'rqPreFrame' && cfg.markers !== '0'
+  out('Result: Rendering with ' + (opts['-r'] || 'file') + ' renderer')
+  if (markers) out('@@RQ:BOOT 2025')
+  out('00:00:00   180MB         | log started ' + new Date().toUTCString())
+  out('00:00:00   182MB         | Arnold 7.3.4.0 [mock] linux x86_64')
+  if (cfg.warn) err('// Warning: mock warning, missing texture sourceimages/wood.png')
+  const total = e - s + 1
+  const hue = (im.length * 1.7) % 6.28
+  const gapFile = cfg.licgap ? path.join(os.tmpdir(), 'rd-mock-licgap-' + require('node:crypto').createHash('sha1').update(path.dirname(path.resolve(scene))).digest('hex')) : ''
+  const lastEnd = gapFile && fs.existsSync(gapFile) ? Number(fs.readFileSync(gapFile, 'utf8')) : 0
+  const deferred = []
+  let firstFrame = true
+  const finish = (code) => {
+    for (const l of deferred) err(l)
+    if (gapFile) fs.writeFileSync(gapFile, String(Date.now()))
+    process.exit(code)
+  }
+  for (let f = s; f <= e; f += b) {
+    if (markers) out('@@RQ:FRAME_START ' + f + '.0')
+    for (let p = 0; p <= 100; p += 25) {
+      await sleep(speed / 5)
+      out(`00:00:0${(f % 9)}   ${600 + p}MB         |    ${String(p).padStart(3)}% done - ${10 + p} rays/pixel`)
+    }
+    if (firstFrame && gapFile && Date.now() - lastEnd < Number(cfg.licgap)) {
+      firstFrame = false
+      out('00:00:17  3107MB ERROR   | aborting render because this is a batch render and abort_on_license_fail option is enabled')
+      deferred.push('// Error: line 1: ERROR   | aborting render because this is a batch render and abort_on_license_fail option is enabled')
+      if (markers) out('@@RQ:FRAME_END ' + f + '.0')
+      continue
+    }
+    firstFrame = false
+    const licenseAt = cfg.license !== undefined ? Number(cfg.license) : null
+    if (licenseAt !== null && f >= licenseAt) {
+      if (f === licenseAt) {
+        out('00:00:17  3107MB ERROR   | aborting render because this is a batch render and abort_on_license_fail option is enabled')
+        err('// Error: line 1: ERROR   | aborting render because this is a batch render and abort_on_license_fail option is enabled')
+      } else if (markers) out('@@RQ:FRAME_END ' + f + '.0')
+      continue
+    }
+    const failAt = cfg.fail !== undefined ? Number(cfg.fail) : null
+    if (failAt === f) {
+      const flag = path.join(os.tmpdir(), 'rd-mock-' + require('node:crypto').createHash('sha1').update(path.resolve(scene) + ':' + f).digest('hex'))
+      if (cfg.once === undefined || !fs.existsSync(flag)) {
+        if (cfg.once !== undefined) fs.writeFileSync(flag, '1')
+        err('// Error: mock render crash at frame ' + f)
+        process.exit(1)
+      }
+    }
+    if (cfg.skipwrite !== String(f)) {
+      const name = `${im}.${String(f).padStart(pad, '0')}.${ext}`
+      const data = ext === 'png' ? png(480, 270, f - s, total, hue) : Buffer.from('MOCKIMAGE' + f)
+      const dirs = cfg.aovs ? ['AA_inv_density', 'beauty'] : ['']
+      let outPath = ''
+      for (const d of dirs) {
+        if (d === 'beauty' && cfg.skipbeauty === String(f)) continue
+        outPath = path.join(rd, d, name)
+        fs.mkdirSync(path.dirname(outPath), { recursive: true })
+        fs.writeFileSync(outPath, data)
+      }
+      out('00:00:0' + (f % 9) + '   700MB         | render done')
+      out('Result: ' + outPath.replace(/\\/g, '/'))
+    }
+    if (markers) out('@@RQ:FRAME_END ' + f + '.0')
+  }
+  out('Scene ' + scene + ' completed.')
+  finish(Number(cfg.exit || 0))
+}
+
+main()

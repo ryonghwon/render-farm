@@ -1,0 +1,160 @@
+#!/usr/bin/env node
+const fs = require('node:fs')
+const path = require('node:path')
+const os = require('node:os')
+const zlib = require('node:zlib')
+
+const argv = process.argv.slice(2)
+const out = (s) => process.stdout.write(s + '\n')
+const err = (s) => process.stderr.write(s + '\n')
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+
+if (argv.includes('--version')) {
+  out('Blender 5.2.3 LTS')
+  out('\tbuild hash: mock')
+  process.exit(0)
+}
+
+let scene = null
+let script = null
+let s = null
+let e = null
+let j = 1
+let animate = false
+for (let i = 0; i < argv.length; i++) {
+  const a = argv[i]
+  if (a === '-b' || a === '--background') {
+    if (argv[i + 1] && !argv[i + 1].startsWith('-')) scene = argv[++i]
+  } else if (a === '--python') script = argv[++i]
+  else if (a === '-s') s = Number(argv[++i])
+  else if (a === '-e') e = Number(argv[++i])
+  else if (a === '-j') j = Number(argv[++i])
+  else if (a === '-t') i++
+  else if (a === '-a') animate = true
+}
+
+function png(w, h, seed) {
+  const crcTable = []
+  for (let n = 0; n < 256; n++) {
+    let c = n
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1
+    crcTable[n] = c >>> 0
+  }
+  const crc = (buf) => {
+    let c = 0xffffffff
+    for (const b of buf) c = crcTable[(c ^ b) & 0xff] ^ (c >>> 8)
+    return (c ^ 0xffffffff) >>> 0
+  }
+  const chunk = (type, data) => {
+    const len = Buffer.alloc(4)
+    len.writeUInt32BE(data.length)
+    const body = Buffer.concat([Buffer.from(type), data])
+    const c = Buffer.alloc(4)
+    c.writeUInt32BE(crc(body))
+    return Buffer.concat([len, body, c])
+  }
+  const raw = Buffer.alloc((w * 3 + 1) * h)
+  for (let y = 0; y < h; y++) {
+    raw[y * (w * 3 + 1)] = 0
+    for (let x = 0; x < w; x++) {
+      const o = y * (w * 3 + 1) + 1 + x * 3
+      raw[o] = (40 + seed * 30) & 255
+      raw[o + 1] = (60 + y) & 255
+      raw[o + 2] = (120 + x / 3) & 255
+    }
+  }
+  const ihdr = Buffer.alloc(13)
+  ihdr.writeUInt32BE(w, 0)
+  ihdr.writeUInt32BE(h, 4)
+  ihdr[8] = 8
+  ihdr[9] = 2
+  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw)), chunk('IEND', Buffer.alloc(0))])
+}
+
+async function main() {
+  out('Blender 5.2.3 LTS (hash mock built 2026-07-01)')
+  if (!scene || !fs.existsSync(scene)) {
+    err('Error: Cannot read file "' + scene + '": No such file or directory')
+    out('Blender quit')
+    process.exit(1)
+  }
+  const cfg = {}
+  const side = scene + '.mock'
+  if (fs.existsSync(side)) {
+    for (const kv of fs.readFileSync(side, 'utf8').trim().split(/\s+/)) {
+      const [k, v] = kv.split('=')
+      if (k) cfg[k] = v === undefined ? '1' : v
+    }
+  }
+  out('00:00.100  blend            | Read blend: "' + scene + '"')
+  const body = script && fs.existsSync(script) ? fs.readFileSync(script, 'utf8') : ''
+  if (body.includes('@@RQ:PROBE')) {
+    out(
+      '@@RQ:PROBE ' +
+        JSON.stringify({
+          version: '5.2',
+          scene: 'Probed',
+          engine: 'CYCLES',
+          start: Number(cfg.start || 1),
+          end: Number(cfg.end || 4),
+          step: 1,
+          width: 640,
+          height: 360,
+          fps: 24,
+          prefix: '//render/',
+          format: 'PNG',
+          cameras: [{ name: 'ProbeCam', renderable: true }],
+          layers: [{ name: 'ViewLayer', renderable: true }],
+          libraries: [],
+          missing: []
+        })
+    )
+    out('Blender quit')
+    process.exit(0)
+  }
+  const m = /json\.loads\(r'''(.*)'''\)/.exec(body)
+  const S = m ? JSON.parse(m[1]) : null
+  if (S) out('@@RQ:BOOT 5.2.3 LTS')
+  if (S && S.device !== 'scene') out('@@RQ:DEVICE ' + (S.device === 'cpu' ? 'CPU' : cfg.gpu ? 'OPTIX NVIDIA GeForce RTX 4070' : 'CPU'))
+  if (!animate) {
+    out('Blender quit')
+    process.exit(0)
+  }
+  if (cfg.nocam) {
+    err('00:00.200  render           | ERROR Unable to render: no camera found in scene "Shot"')
+    out('Blender quit')
+    process.exit(0)
+  }
+  const speed = Number(cfg.speed || 80)
+  const first = s ?? Number(cfg.start || 1)
+  const last = e ?? Number(cfg.end || 6)
+  const fmt = (S && S.format) || 'PNG'
+  const ext = { OPEN_EXR_MULTILAYER: 'exr', OPEN_EXR: 'exr', PNG: 'png', TIFF: 'tif', JPEG: 'jpg' }[fmt] || 'png'
+  const pattern = S ? S.output : path.join(path.dirname(scene), 'render', '####')
+  for (let f = first; f <= last; f += Math.max(1, j)) {
+    if (S) out('@@RQ:FRAME_START ' + f)
+    for (let p = 1; p <= 4; p++) {
+      await sleep(speed / 4)
+      out(`Fra:${f} Mem:120.5M (Peak 140.2M) | Time:00:00.${String(p * 10).padStart(2, '0')} | Remaining:00:00.30 | Mem:20.1M, Peak:22.0M | Shot, ViewLayer | Sample ${p * 4}/16`)
+    }
+    if (cfg.fail === String(f)) {
+      const flag = path.join(os.tmpdir(), 'rd-mockbl-' + require('node:crypto').createHash('sha1').update(path.resolve(scene) + ':' + f).digest('hex'))
+      if (cfg.once === undefined || !fs.existsSync(flag)) {
+        if (cfg.once !== undefined) fs.writeFileSync(flag, '1')
+        err('Error: EXCEPTION_ACCESS_VIOLATION')
+        process.exit(1)
+      }
+    }
+    const file = pattern.replace(/#+/, (h) => String(f).padStart(h.length, '0')) + '.' + ext
+    fs.mkdirSync(path.dirname(file), { recursive: true })
+    fs.writeFileSync(file, ext === 'png' ? png(160, 90, f) : Buffer.from('MOCKIMAGE' + f))
+    out(`00:00.${String(f).padStart(3, '0')}  render           | Saved: '${file}'`)
+    if (S) out('@@RQ:FRAME_END ' + f)
+    out(' Time: 00:00.08 (Saving: 00:00.00)')
+  }
+  out('')
+  out('Blender quit')
+  process.exit(0)
+}
+
+main()

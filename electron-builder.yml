@@ -1,0 +1,42 @@
+appId: kr.ac.kaywon.renderfarm
+productName: RenderFarm
+directories:
+  buildResources: build
+  output: dist
+files:
+  - out/**
+  - build/icon.png
+  - package.json
+asarUnpack:
+  - build/icon.png
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+  icon: build/icon.png
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  shortcutName: 렌더팜
+  artifactName: ${productName}-Setup-${version}.${ext}
+portable:
+  artifactName: ${productName}-Portable-${version}.${ext}
+mac:
+  target:
+    - target: zip
+      arch: [arm64, x64]
+  category: public.app-category.graphics-design
+  icon: build/icon.png
+  identity: null
+  hardenedRuntime: false
+  artifactName: ${productName}-${version}-mac-${arch}.${ext}
+  extendInfo:
+    NSAppleEventsUsageDescription: 렌더가 모두 끝난 뒤 Mac을 자동으로 끄기 위해 필요합니다.
+    CFBundleDisplayName: 렌더팜
+linux:
+  target: AppImage
+publish: null
