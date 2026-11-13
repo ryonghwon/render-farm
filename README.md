@@ -48,7 +48,12 @@
 
 ## 다운로드
 
-[최신 릴리스](https://github.com/ryonghwon/renderfarm/releases/latest)에서 `RenderFarm-Portable-<버전>.exe`를 받아 실행합니다. 설치 과정은 없습니다.
+[최신 릴리스](https://github.com/ryonghwon/renderfarm/releases/latest)에서 둘 중 하나를 받습니다.
+
+| 파일 | 용도 |
+| --- | --- |
+| `RenderFarm-Setup-<버전>.exe` | 설치형, 시작 메뉴와 바탕 화면 바로 가기 생성 |
+| `RenderFarm-Portable-<버전>.exe` | 설치 없이 바로 실행, 실습실 공용 PC용 |
 
 > 코드 서명이 없는 앱이라 처음 실행할 때 Windows의 "PC 보호" 창이 표시됩니다. **추가 정보**를 누른 뒤 **실행**을 누르면 됩니다.
 
@@ -170,9 +175,11 @@ PIN으로 설정을 잠그면 학생은 씬 추가, 프레임 범위, 카메라,
 npm install
 npm run dev        # 개발 실행
 npm test           # 렌더 엔진 테스트 (모의 Maya, 모의 Blender)
-npm run dist:win   # Windows 포터블 실행 파일
+npm run dist:win   # Windows 설치 파일과 포터블 실행 파일
 npm run dist:mac   # macOS 앱 (Apple Silicon, Intel)
 ```
+
+`v*` 형식의 태그를 푸시하면 GitHub Actions가 테스트를 거쳐 Windows 설치 파일과 포터블 실행 파일을 빌드하고 릴리스에 올립니다.
 
 ```
 src/main/engine     렌더 엔진 (Electron 비의존)
