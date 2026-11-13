@@ -179,7 +179,7 @@ npm run dist:win   # Windows 설치 파일과 포터블 실행 파일
 npm run dist:mac   # macOS 앱 (Apple Silicon, Intel)
 ```
 
-`v*` 형식의 태그를 푸시하면 GitHub Actions가 테스트를 거쳐 Windows 설치 파일과 포터블 실행 파일을 빌드하고 릴리스에 올립니다.
+GitHub에서 `v0.2.1` 같은 태그로 릴리스를 발행하면 GitHub Actions가 테스트를 거쳐 Windows 설치 파일과 포터블 실행 파일을 빌드해 그 릴리스에 첨부합니다. `docs/releases/<태그>.md`가 있으면 릴리스 설명도 그 내용으로 채웁니다.
 
 ```
 src/main/engine     렌더 엔진 (Electron 비의존)

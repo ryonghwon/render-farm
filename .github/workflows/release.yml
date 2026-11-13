@@ -1,9 +1,8 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - 'v*'
+  release:
+    types: [published]
 
 permissions:
   contents: write
@@ -33,16 +32,17 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npx electron-builder --win nsis portable --x64 --publish never
-      - name: Publish release
+      - name: Attach files to release
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.release.tag_name }}
         run: |
-          version="${GITHUB_REF_NAME#v}"
-          notes="docs/releases/${GITHUB_REF_NAME}.md"
-          [ -f "$notes" ] || notes=/dev/null
-          gh release create "$GITHUB_REF_NAME" \
+          version="${TAG#v}"
+          gh release upload "$TAG" \
             "dist/RenderFarm-Setup-${version}.exe" \
             "dist/RenderFarm-Portable-${version}.exe" \
-            --title "렌더팜 ${version}" \
-            --notes-file "$notes"
+            --clobber
+          if [ -f "docs/releases/${TAG}.md" ]; then
+            gh release edit "$TAG" --title "렌더팜 ${version}" --notes-file "docs/releases/${TAG}.md"
+          fi
