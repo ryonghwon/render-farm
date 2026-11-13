@@ -1499,5 +1499,5 @@ export function formatDuration(ms: number): string {
 }
 
 export function actionLabel(a: CompletionAction): string {
-  return { none: '없음', sleep: '절전 모드', shutdown: 'PC 끄기', quit: '렌더팜 닫기' }[a]
+  return { none: '없음', sleep: '절전 모드', shutdown: 'PC 끄기', quit: 'Render Farm 닫기' }[a]
 }

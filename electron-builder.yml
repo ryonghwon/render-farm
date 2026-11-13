@@ -21,7 +21,7 @@ nsis:
   perMachine: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
-  shortcutName: 렌더팜
+  shortcutName: Render Farm
   artifactName: ${productName}-Setup-${version}.${ext}
 portable:
   artifactName: ${productName}-Portable-${version}.${ext}
@@ -36,7 +36,7 @@ mac:
   artifactName: ${productName}-${version}-mac-${arch}.${ext}
   extendInfo:
     NSAppleEventsUsageDescription: 렌더가 모두 끝난 뒤 Mac을 자동으로 끄기 위해 필요합니다.
-    CFBundleDisplayName: 렌더팜
+    CFBundleDisplayName: Render Farm
 linux:
   target: AppImage
 publish: null

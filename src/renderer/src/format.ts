@@ -69,7 +69,7 @@ export const ACTION_LABEL: Record<CompletionAction, string> = {
   none: '없음',
   sleep: '절전 모드',
   shutdown: 'PC 끄기',
-  quit: '렌더팜 닫기'
+  quit: 'Render Farm 닫기'
 }
 
 export function duration(ms: number | null | undefined, approx = false): string {

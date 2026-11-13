@@ -2,20 +2,20 @@
   <img src="build/icon.png" width="80" alt="">
 </p>
 
-<h1 align="center">렌더팜</h1>
+<h1 align="center">Render Farm</h1>
 
-<p align="center">Render Farm, Maya와 Blender 배치 렌더 매니저</p>
+<p align="center">Maya, Blender 배치 렌더 매니저</p>
 
 <p align="center">
   <a href="https://github.com/ryonghwon/renderfarm/releases/latest"><img src="https://img.shields.io/github/v/release/ryonghwon/renderfarm?label=release&color=2383e2" alt="release"></a>
   <img src="https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-37352f" alt="platform">
 </p>
 
-![렌더팜](docs/screenshots/overview.png)
+![Render Farm](docs/screenshots/overview.png)
 
 ## 개요
 
-렌더팜은 여러 Maya, Blender 씬을 하나의 렌더 목록으로 관리하는 Windows 데스크톱 애플리케이션입니다. 씬 등록 시 렌더 설정을 분석해 문제를 사전에 표시하고, 렌더 후 프레임 단위로 결과를 검증합니다. 무인 렌더 환경을 전제로 재시도, 이어서 렌더, 완료 후 시스템 종료를 지원합니다.
+Render Farm은 여러 Maya, Blender 씬을 하나의 렌더 목록으로 관리하는 Windows 데스크톱 애플리케이션입니다. 씬 등록 시 렌더 설정을 분석해 문제를 사전에 표시하고, 렌더 후 프레임 단위로 결과를 검증합니다. 무인 렌더 환경을 전제로 재시도, 이어서 렌더, 완료 후 시스템 종료를 지원합니다.
 
 ## 기능
 
@@ -88,7 +88,7 @@ Maya와 Blender는 아래 경로에서 자동 탐지합니다. 그 외 경로는
 
 ### 로그
 
-기본 보기는 렌더팜 이벤트 요약입니다. Maya, Blender 원본 출력은 보기 옵션에서 표시합니다. 재시도로 복구된 오류는 요약에 포함하지 않습니다.
+기본 보기는 Render Farm 이벤트 요약입니다. Maya, Blender 원본 출력은 보기 옵션에서 표시합니다. 재시도로 복구된 오류는 요약에 포함하지 않습니다.
 
 ![로그](docs/screenshots/log.png)
 

@@ -133,7 +133,7 @@ export function CountdownModal() {
   const c = snap.completion
   if (c.countdown === null || !c.pendingAction) return null
   const action = c.pendingAction
-  const verb = action === 'shutdown' ? 'PC를 끕니다' : action === 'sleep' ? '절전 모드로 전환합니다' : '렌더팜을 닫습니다'
+  const verb = action === 'shutdown' ? 'PC를 끕니다' : action === 'sleep' ? '절전 모드로 전환합니다' : 'Render Farm을 닫습니다'
   return (
     <div className="modal-back">
       <div className="modal narrow" role="alertdialog" aria-labelledby="cd-title">
@@ -537,7 +537,7 @@ export function SettingsModal({ info }: { info: AppInfo | null }) {
                     options={[
                       { value: 'shutdown', label: 'PC 끄기' },
                       { value: 'sleep', label: '절전 모드' },
-                      { value: 'quit', label: '렌더팜 닫기' }
+                      { value: 'quit', label: 'Render Farm 닫기' }
                     ]}
                     onChange={(v) => up({ completionKind: v, completionAction: armed ? v : 'none' })}
                   />
@@ -695,7 +695,7 @@ export function SettingsModal({ info }: { info: AppInfo | null }) {
                 </Field>
                 {info && (
                   <div className="hint" style={{ marginTop: 6 }}>
-                    렌더팜 {info.version}, Electron {info.electron}
+                    Render Farm {info.version}, Electron {info.electron}
                     <br />
                     데이터 폴더 {info.dataDir}
                   </div>

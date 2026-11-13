@@ -41,7 +41,7 @@ export function Header() {
     <header className="header">
       <div className="brand">
         <Logo size={24} />
-        <span className="brand-name">렌더팜</span>
+        <span className="brand-name">Render Farm</span>
       </div>
       <div className="add-wrap" ref={ref}>
         <button className="btn outline" onClick={() => setMenu((v) => !v)} aria-haspopup="menu" aria-expanded={menu}>

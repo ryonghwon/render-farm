@@ -57,7 +57,7 @@ function createWindow(): void {
     minHeight: 680,
     show: false,
     backgroundColor: '#FFFFFF',
-    title: '렌더팜',
+    title: 'Render Farm',
     autoHideMenuBar: true,
     icon: path.join(__dirname, '../../build/icon.png'),
     webPreferences: {
@@ -84,7 +84,7 @@ function createWindow(): void {
       buttons: ['렌더 중지 후 종료', '계속 렌더'],
       defaultId: 1,
       cancelId: 1,
-      title: '렌더팜',
+      title: 'Render Farm',
       message: '렌더가 진행 중입니다.',
       detail: '종료하면 진행 중인 렌더 프로세스가 중지됩니다. 다음 실행 시 남은 프레임부터 이어서 렌더할 수 있습니다.'
     })
