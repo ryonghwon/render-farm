@@ -1,11 +1,17 @@
-name: Release
+name: Validate and package
 
 on:
-  release:
-    types: [published]
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: validate-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -14,11 +20,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
       - run: npm ci
       - run: npm run typecheck
+      - run: npm run format:check
       - run: npm test
+      - run: npm run build
 
   windows:
     needs: test
@@ -27,22 +35,31 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
       - run: npm ci
-      - run: npm run build
-      - run: npx electron-builder --win nsis portable --x64 --publish never
-      - name: Attach files to release
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ github.event.release.tag_name }}
-        run: |
-          version="${TAG#v}"
-          gh release upload "$TAG" \
-            "dist/RenderFarm-Setup-${version}.exe" \
-            "dist/RenderFarm-Portable-${version}.exe" \
-            --clobber
-          if [ -f "docs/releases/${TAG}.md" ]; then
-            gh release edit "$TAG" --title "Render Farm ${version}" --notes-file "docs/releases/${TAG}.md"
-          fi
+      - run: node --import tsx --test test/platform.test.ts test/runner.test.ts
+      - run: npm run dist:win
+      - uses: actions/upload-artifact@v4
+        with:
+          name: render-farm-windows
+          path: dist/Render-Farm-*-Windows-*.exe
+          if-no-files-found: error
+
+  mac:
+    needs: test
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run dist:mac
+      - run: node scripts/verify-mac.cjs dist/Render-Farm-*-macOS-*.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: render-farm-macos
+          path: dist/Render-Farm-*-macOS-*.zip
+          if-no-files-found: error

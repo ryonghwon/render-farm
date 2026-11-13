@@ -23,7 +23,7 @@ export function runPowerAction(action: CompletionAction, dryRun: boolean): Promi
   const c = powerCommand(action)
   if (!c) return Promise.resolve('')
   const line = `${c.cmd} ${c.args.join(' ')}`
-  if (dryRun) return Promise.resolve(`[Dry run] ${line}`)
+  if (dryRun) return Promise.resolve(`[테스트 모드] ${line}`)
   return new Promise((resolve, reject) => {
     execFile(c.cmd, c.args, { windowsHide: true }, (err) => (err ? reject(err) : resolve(line)))
   })

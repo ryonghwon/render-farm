@@ -68,6 +68,14 @@ The build produces separate Apple Silicon and Intel archives in `dist/`:
 
 ## Signing and distribution
 
-The checked-in configuration creates unsigned packages. For signed Mac distribution, set a Developer ID identity, enable hardened runtime, configure required entitlements, and provide notarization credentials to electron-builder. Configure a Windows signing certificate or supported signing service for Windows releases. Keep credentials outside the repository.
+The checked-in configuration ad-hoc signs Mac bundles and leaves Windows packages unsigned. Mac builds are not notarized. For signed Mac distribution, set a Developer ID identity, enable hardened runtime, configure required entitlements, and provide notarization credentials to electron-builder. Configure a Windows signing certificate or supported signing service for Windows releases. Keep credentials outside the repository.
 
 Retain the application identifier and data-directory selection when changing display names. Before publishing, verify startup, renderer discovery, a real render, output-folder access, cancellation, and queue recovery on each target operating system. Generate checksums for the final downloadable artifacts.
+
+Verify each final Mac archive after packaging:
+
+```sh
+node scripts/verify-mac.cjs dist/Render-Farm-0.1.0-macOS-arm64.zip dist/Render-Farm-0.1.0-macOS-x64.zip
+```
+
+This extracts a temporary copy, checks archive integrity, validates the complete code signature, and checks executable permissions. It does not certify notarization or replace an actual launch test. CI validates source on Linux and builds packages on Windows and macOS; it never overwrites published release assets.

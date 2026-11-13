@@ -28,16 +28,16 @@ export function LogPanel() {
   }
 
   return (
-    <section className="card logcard" style={{ height: `var(--log-h, ${Math.max(height, 180)}px)` }} aria-label="Log">
+    <section className="card logcard" style={{ height: `var(--log-h, ${Math.max(height, 180)}px)` }} aria-label="로그">
       <div className="log-resize" onMouseDown={startResize} role="separator" aria-orientation="horizontal" />
       <div className="log-head">
-        <h3>Log</h3>
+        <h3>로그</h3>
         <LogTools />
         <span className="spacer" />
         <button
           className="btn ghost icon small"
-          aria-label="Close log"
-          title="Close log"
+          aria-label="로그 닫기"
+          title="로그 닫기"
           onClick={() => window.rd.updateApp({ logOpen: false })}
         >
           <X />
@@ -83,38 +83,38 @@ function LogTools() {
         className="mini"
         value={source}
         options={[
-          { value: 'job', label: jobName ? `Scene: ${jobName}` : 'Selected scene' },
-          { value: 'system', label: 'All' }
+          { value: 'job', label: jobName ? `씬: ${jobName}` : '선택한 씬' },
+          { value: 'system', label: '전체' }
         ]}
         onChange={setSource}
-        ariaLabel="Log source"
+        ariaLabel="로그 대상"
       />
       <Select
         className="mini"
         value={filter}
         options={[
-          { value: 'summary', label: 'Summary' },
-          { value: 'issues', label: 'Include renderer warnings' },
-          { value: 'all', label: 'Full renderer log' }
+          { value: 'summary', label: '요약' },
+          { value: 'issues', label: 'Maya 경고 포함' },
+          { value: 'all', label: 'Maya 전체' }
         ]}
         onChange={setFilter}
-        ariaLabel="Log view"
+        ariaLabel="로그 보기"
       />
       <button
         className="btn ghost small icon"
-        title="Copy visible log"
-        aria-label="Copy log"
+        title="표시된 로그 복사"
+        aria-label="로그 복사"
         onClick={async () => {
           await navigator.clipboard.writeText(lines.map((l) => `${clock(l.t)} ${l.text}`).join('\n'))
-          toast(`Copied ${lines.length} log lines.`)
+          toast(`로그 ${lines.length}줄을 복사했습니다.`)
         }}
       >
         <ClipboardCopy />
       </button>
       <button
         className="btn ghost small icon"
-        title="Open log folder"
-        aria-label="Open log folder"
+        title="로그 폴더 열기"
+        aria-label="로그 폴더 열기"
         onClick={() => window.rd.openLogs(key === SYSTEM_KEY ? null : key)}
       >
         <FolderOpen />
@@ -150,7 +150,7 @@ function LogView() {
       }}
     >
       {lines.length === 0 && (
-        <div className="log-empty">{source === 'job' && !selected.length ? 'Select a scene to view its log.' : 'No log entries'}</div>
+        <div className="log-empty">{source === 'job' && !selected.length ? '씬을 선택하면 해당 로그가 표시됩니다.' : '로그 없음'}</div>
       )}
       {lines.map((l, i) => (
         <div key={`${l.t}-${i}`} className={`log-line ${l.level}`}>

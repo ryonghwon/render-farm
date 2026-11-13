@@ -24,7 +24,9 @@ PNG and JPEG previews use the app's image reader. For EXR and other supported fo
 
 ## Mac blocks the application
 
-Unsigned packages can trigger Gatekeeper checks. Verify that the download came from this repository's release page. If you trust the package, use the operating system's **Privacy & Security** controls to approve it. Managed computers may require an administrator. Signed distribution builds are configured through the build process.
+Mac packages have an ad-hoc code signature for integrity, but no Apple Developer ID or notarization. A warning that Apple cannot verify the developer may therefore appear on first launch. Confirm that the archive came from this repository and matches its published checksum. If you choose to allow it, use **System Settings > Privacy & Security > Open Anyway**, following [Apple's instructions](https://support.apple.com/en-us/102445). Managed computers may require an administrator.
+
+A **damaged** message is different. Download the complete archive again, extract it with Archive Utility, and replace the app bundle. Keep the application-data directory and rendered output. If the warning persists, report the package name and macOS version. Do not disable Gatekeeper or change system-wide security settings.
 
 ## A restarted queue contains stopped scenes
 

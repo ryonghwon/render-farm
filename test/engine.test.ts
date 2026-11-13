@@ -213,7 +213,7 @@ async function main() {
     const log = logText(engine, engine.jobs[0].id)
     assert.match(log, /-proj/)
     assert.match(log, /-preRender rqBoot/)
-    assert.match(log, /Maya render session started/)
+    assert.match(log, /Maya 렌더 세션 시작 확인/)
     assert.equal(engine.stats().progress, 1)
   })
 
@@ -258,7 +258,7 @@ async function main() {
     assert.equal(job.tasks.length, 2)
     assert.equal(job.tasks[0].status, 'failed')
     assert.deepEqual([job.tasks[1].start, job.tasks[1].end, job.tasks[1].attempt], [5, 8, 1])
-    assert.match(logText(engine, job.id), /Queued missing frames for retry/)
+    assert.match(logText(engine, job.id), /빠진 프레임 재시도 예약/)
   })
 
   await test('persistent failure ends as partial with the missing frame list', async () => {
@@ -287,9 +287,9 @@ async function main() {
     assert.equal(job.status, 'partial')
     assert.deepEqual(job.doneFrames, [1, 2, 3, 4])
     assert.deepEqual(job.missingFrames, [5, 6, 7, 8])
-    assert.match(job.error ?? '', /license/)
+    assert.match(job.error ?? '', /라이선스/)
     const log = logText(engine, job.id)
-    assert.match(log, /for retry \(license wait 1\/3\)/)
+    assert.match(log, /다시 렌더 예약 \(라이선스 대기 1\/3\)/)
     const failed = job.tasks.filter((t) => t.status === 'failed')
     assert.equal(failed.length, 4)
     assert.ok(failed[1].startedAt! - failed[0].finishedAt! >= 250)
@@ -313,7 +313,7 @@ async function main() {
     const lines = [...engine.getLog(a.id), ...engine.getLog(b.id), ...engine.getLog(null)]
     assert.equal(lines.filter((l) => !l.raw && l.level === 'error').length, 0)
     assert.ok(lines.some((l) => l.raw && /abort_on_license_fail/.test(l.text)))
-    assert.match(logText(engine, null), /between renders for Arnold license release/)
+    assert.match(logText(engine, null), /렌더 사이 간격/)
   })
 
   await test('time estimate separates scene loading from frame time and survives a rerun', async () => {
@@ -362,9 +362,9 @@ async function main() {
     assert.deepEqual(job.doneFrames, [1, 2, 3, 4, 5, 6])
     for (let f = 1; f <= 6; f++) assert.ok(fs.existsSync(path.join(out, 'B_RUN', `B_RUN.${String(f).padStart(4, '0')}.png`)))
     const log = logText(engine, job.id)
-    assert.match(log, /Blender render session started/)
-    assert.match(log, /Render device: CPU/)
-    assert.match(log, /Command: .*-b .*B_RUN\.blend --python .*rf_boot\.py -s 1 -e 6 -j 1 -a/)
+    assert.match(log, /Blender 렌더 세션 시작 확인/)
+    assert.match(log, /렌더 장치: CPU/)
+    assert.match(log, /명령: .*-b .*B_RUN\.blend --python .*rf_boot\.py -s 1 -e 6 -j 1 -a/)
     assert.ok(job.avgFrameMs! > 0 && job.versionUsed === '5.2')
   })
 
@@ -374,7 +374,7 @@ async function main() {
     await runToEnd(engine)
     assert.equal(job.status, 'done')
     const failed = job.tasks.find((t) => t.status === 'failed')!
-    assert.match(failed.error ?? '', /^Exit code: 1$/)
+    assert.match(failed.error ?? '', /^종료 코드 1$/)
     const retry = job.tasks.find((t) => t.attempt === 1)!
     assert.deepEqual([retry.start, retry.end], [4, 6])
   })
@@ -418,8 +418,8 @@ async function main() {
   })
 
   await test('Windows crash codes are described in plain words', async () => {
-    assert.equal(describeExit(3221226356, null), 'Render.exe exited unexpectedly (0xC0000374, Heap corruption)')
-    assert.equal(describeExit(1, null), 'Exit code: 1')
+    assert.equal(describeExit(3221226356, null), 'Render.exe 비정상 종료 (0xC0000374, 힙 손상)')
+    assert.equal(describeExit(1, null), '종료 코드 1')
   })
 
   await test('frame written without markers is still detected and verified', async () => {
@@ -441,7 +441,7 @@ async function main() {
     const { engine } = await setup('elsewhere', [['ELSE', { end: 3, mock: 'speed=20 wrongdir=1' }]], { maxRetries: 0 })
     await runToEnd(engine)
     assert.equal(engine.jobs[0].status, 'done')
-    assert.match(logText(engine, engine.jobs[0].id), /Check the output path/)
+    assert.match(logText(engine, engine.jobs[0].id), /저장 경로 확인 필요/)
   })
 
   await test('stop then start resumes from unfinished frames', async () => {
@@ -544,7 +544,7 @@ async function main() {
     assert.ok(codes.includes('range-diff'))
     assert.ok(codes.includes('missing-refs'))
     assert.ok(codes.includes('non-ascii'))
-    assert.match(engine.jobs[0].issues.find((i) => i.code === 'non-ascii')!.message, /scene path.*café/)
+    assert.match(engine.jobs[0].issues.find((i) => i.code === 'non-ascii')!.message, /씬 파일 경로.*café/)
     engine.updateGlobal({ outputRoot: p.out })
     engine.duplicateJobs([engine.jobs[0].id])
     codes = engine.jobs[1].issues.map((i) => i.code)
@@ -576,7 +576,7 @@ async function main() {
     assert.equal(engine.completion.pendingAction, 'shutdown')
     assert.ok((engine.completion.countdown ?? 0) > 0)
     await waitFor(() => engine.completion.pendingAction === null, 8000, 'countdown')
-    assert.match(logText(engine, null), /\[Dry run\] (shutdown|systemctl poweroff|osascript)/)
+    assert.match(logText(engine, null), /\[테스트 모드\] (shutdown|systemctl poweroff|osascript)/)
   })
 
   await test('cancelled countdown never fires and stop never triggers shutdown', async () => {
@@ -599,7 +599,7 @@ async function main() {
     assert.equal(engine.completion.pendingAction, 'shutdown')
     engine.cancelCountdown()
     await new Promise((r) => setTimeout(r, 1200))
-    assert.doesNotMatch(logText(engine, null), /Dry run/)
+    assert.doesNotMatch(logText(engine, null), /테스트 모드/)
   })
 
   await test('range warning offers a one-click timeline fix and can be dismissed', async () => {

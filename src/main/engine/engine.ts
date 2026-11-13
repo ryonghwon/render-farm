@@ -158,7 +158,7 @@ export class Engine extends EventEmitter {
     fs.writeFileSync(path.join(this.dataDir, 'blender_probe.py'), BLENDER_PROBE_PY, 'utf8')
     this.installs = this.discoverInstalls(this.app.manualInstalls)
     this.encoding = await detectConsoleEncoding(this.app.logEncoding)
-    this.syslog('system', `Engine started: ${this.installSummary()}; log encoding: ${this.encoding}`)
+    this.syslog('system', `엔진 시작: ${this.installSummary()}, 로그 인코딩 ${this.encoding}`)
     for (const j of this.jobs) {
       if (j.status === 'rendering') continue
       if (j.info.method === 'ascii' && (j.info.parserVersion ?? 1) < PARSER_VERSION) j.info = { ...emptySceneInfo() }
@@ -260,7 +260,7 @@ export class Engine extends EventEmitter {
       const data: PersistShape = { version: 1, jobs: this.jobs, global: this.global, app: this.app, presets: this.presets }
       writeJsonAtomic(this.stateFile, data)
     } catch (e) {
-      this.syslog('error', `Could not save state: ${(e as Error).message}`)
+      this.syslog('error', `상태 저장 실패: ${(e as Error).message}`)
     }
   }
 
@@ -341,7 +341,7 @@ export class Engine extends EventEmitter {
       this.enqueueProbe(job.id, false)
       added++
     }
-    if (added) this.syslog('system', `Added ${added} scenes${skipped ? `; skipped ${skipped} duplicates` : ''}`)
+    if (added) this.syslog('system', `씬 ${added}개 등록${skipped ? `, 중복 ${skipped}개 제외` : ''}`)
     this.refresh()
     if (this.running) this.schedule()
     return { added, skipped }
@@ -441,7 +441,7 @@ export class Engine extends EventEmitter {
 
   updateGlobal(patch: Partial<RenderSettings>): void {
     if (this.isLocked()) {
-      this.syslog('warn', 'Settings are locked; output defaults cannot be changed')
+      this.syslog('warn', '설정 잠금 상태: 기본 저장 설정 변경 불가')
       this.changed(false)
       return
     }
@@ -464,7 +464,7 @@ export class Engine extends EventEmitter {
     if (!this.app.lockPinHash) return true
     if (hashPin(pin) !== this.app.lockPinHash) return false
     this.sessionUnlocked = true
-    this.syslog('system', 'Settings unlocked')
+    this.syslog('system', '설정 잠금 해제')
     this.changed(false)
     return true
   }
@@ -472,7 +472,7 @@ export class Engine extends EventEmitter {
   lockNow(): void {
     if (!this.app.lockPinHash) return
     this.sessionUnlocked = false
-    this.syslog('system', 'Settings locked')
+    this.syslog('system', '설정 잠금')
     this.changed(false)
   }
 
@@ -480,7 +480,7 @@ export class Engine extends EventEmitter {
     if (this.isLocked()) return false
     this.app.lockPinHash = pin ? hashPin(pin) : ''
     this.sessionUnlocked = !!pin
-    this.syslog('system', pin ? 'Settings PIN configured' : 'Settings unlocked; PIN removed')
+    this.syslog('system', pin ? '설정 잠금 PIN 설정' : '설정 잠금 해제 (PIN 삭제)')
     this.changed()
     return true
   }
@@ -522,7 +522,7 @@ export class Engine extends EventEmitter {
     const p = this.presets.find((x) => x.id === id)
     if (!p) return
     this.global = { ...DEFAULT_RENDER, ...p.settings }
-    this.syslog('system', `Preset applied: ${p.name}`)
+    this.syslog('system', `프리셋 적용: ${p.name}`)
     this.refresh()
   }
 
@@ -533,12 +533,12 @@ export class Engine extends EventEmitter {
 
   private installSummary(): string {
     const n = (app: AppKind) => this.installs.filter((i) => i.app === app).length
-    return `${n('maya')} Maya and ${n('blender')} Blender installations found`
+    return `Maya ${n('maya')}개, Blender ${n('blender')}개 탐지`
   }
 
   detectApps(): void {
     this.installs = this.discoverInstalls(this.app.manualInstalls)
-    this.syslog('system', `Application scan: ${this.installSummary()}`)
+    this.syslog('system', `프로그램 설치 확인: ${this.installSummary()}`)
     this.refresh()
   }
 
@@ -607,7 +607,7 @@ export class Engine extends EventEmitter {
     this.changed(false)
     let info: SceneInfo
     try {
-      if (!fs.existsSync(job.scenePath)) throw new Error('Scene file not found')
+      if (!fs.existsSync(job.scenePath)) throw new Error('씬 파일을 찾을 수 없음')
       if (job.app === 'blender') {
         info = await this.probeBlenderScene(job)
       } else {
@@ -640,7 +640,7 @@ export class Engine extends EventEmitter {
     } catch (e) {
       const blender = this.pick(job).install
       if (!blender) throw e
-      this.jlog(job, null, 'system', `File inspection failed; inspecting with Blender ${blender.version}: ${(e as Error).message}`)
+      this.jlog(job, null, 'system', `파일 직접 분석 실패, Blender ${blender.version}로 분석: ${(e as Error).message}`)
       return probeBlenderDeep(blender.renderPath, job.scenePath, path.join(this.dataDir, 'blender_probe.py'), 240000)
     }
   }
@@ -650,10 +650,10 @@ export class Engine extends EventEmitter {
     const choice = this.pick(job)
     const mayapy = choice.install?.mayapyPath
     if (!mayapy) {
-      this.jlog(job, null, 'warn', 'Detailed inspection requires mayapy')
+      this.jlog(job, null, 'warn', '정밀 분석 불가: mayapy 없음')
       return
     }
-    this.jlog(job, null, 'system', `Detailed inspection started (mayapy ${choice.install?.version})`)
+    this.jlog(job, null, 'system', `정밀 분석 시작 (mayapy ${choice.install?.version})`)
     try {
       const d = await probeDeep(job.scenePath, { mayapy, scriptPath: path.join(this.dataDir, 'probe.py'), timeoutMs: 240000 })
       if (!this.jobs.includes(job)) return
@@ -667,9 +667,9 @@ export class Engine extends EventEmitter {
       merged.state = 'done'
       merged.error = null
       job.info = merged
-      this.jlog(job, null, 'system', 'Detailed inspection complete')
+      this.jlog(job, null, 'system', '정밀 분석 완료')
     } catch (e) {
-      this.jlog(job, null, 'warn', `Detailed inspection failed: ${(e as Error).message}`)
+      this.jlog(job, null, 'warn', `정밀 분석 실패: ${(e as Error).message}`)
     }
     this.refresh()
   }
@@ -789,7 +789,7 @@ export class Engine extends EventEmitter {
     }
     this.runSet = new Set(this.jobs.filter((j) => j.enabled && (j.status === 'idle' || j.status === 'stopped')).map((j) => j.id))
     if (!this.runSet.size) {
-      this.syslog('warn', 'No jobs to render')
+      this.syslog('warn', '렌더 대상 작업 없음')
       this.changed(false)
       return
     }
@@ -801,7 +801,7 @@ export class Engine extends EventEmitter {
     this.licenseGapMs = 0
     this.gapNotedUntil = 0
     this.runStartedAt = Date.now()
-    this.syslog('system', `Render started: ${this.runSet.size} jobs, ${this.app.concurrency} concurrent tasks`)
+    this.syslog('system', `렌더 시작: 작업 ${this.runSet.size}개, 동시 실행 ${this.app.concurrency}`)
     this.emit('awake', this.app.keepAwake)
     this.startWatch()
     this.schedule()
@@ -811,14 +811,14 @@ export class Engine extends EventEmitter {
   pause(): void {
     if (!this.running || this.paused) return
     this.paused = true
-    this.syslog('system', 'Pausing after active scenes finish')
+    this.syslog('system', '잠시 멈춤: 진행 중인 씬을 마친 뒤 대기')
     this.changed(false)
   }
 
   resume(): void {
     if (!this.running || !this.paused) return
     this.paused = false
-    this.syslog('system', 'Rendering resumed')
+    this.syslog('system', '렌더 이어서 진행')
     this.schedule()
     this.changed(false)
   }
@@ -828,7 +828,7 @@ export class Engine extends EventEmitter {
     this.stopRequested = true
     this.running = false
     this.paused = false
-    this.syslog('system', 'Render stop requested')
+    this.syslog('system', '렌더 중지 요청')
     for (const ctx of this.ctxs.values()) ctx.proc.kill()
     for (const j of this.jobs) {
       if (j.status !== 'rendering') continue
@@ -849,7 +849,7 @@ export class Engine extends EventEmitter {
         for (const t of j.tasks) if (t.status === 'pending') t.status = 'stopped'
         for (const ctx of this.ctxs.values()) if (ctx.job === j) ctx.proc.kill()
         if (!j.tasks.some((t) => t.status === 'running')) this.finalizeJob(j)
-        this.jlog(j, null, 'system', 'Job skipped')
+        this.jlog(j, null, 'system', '작업 건너뜀')
       } else if (j.status === 'idle' || j.status === 'stopped') {
         j.status = 'skipped'
         this.runSet.delete(j.id)
@@ -876,12 +876,7 @@ export class Engine extends EventEmitter {
           this.armRetryTimer(Date.now() + wait)
           if (this.gapNotedUntil < this.lastSessionEndAt + this.licenseGapMs) {
             this.gapNotedUntil = this.lastSessionEndAt + this.licenseGapMs
-            this.jlog(
-              next.job,
-              null,
-              'system',
-              `Waiting for Arnold license release; rendering resumes in ${Math.ceil(wait / 1000)} seconds`
-            )
+            this.jlog(next.job, null, 'system', `Arnold 라이선스 반환 대기, ${Math.ceil(wait / 1000)}초 후 렌더 시작`)
           }
           break
         }
@@ -947,8 +942,8 @@ export class Engine extends EventEmitter {
       job.finishedAt = Date.now()
       this.runSet.delete(job.id)
       this.runHadFailure = true
-      this.jlog(job, null, 'error', `Cannot render: ${blocking.message}`)
-      this.emit('notify', { title: 'Cannot render', body: `${job.sceneName}: ${blocking.message}`, level: 'error' })
+      this.jlog(job, null, 'error', `렌더 불가: ${blocking.message}`)
+      this.emit('notify', { title: '렌더 불가', body: `${job.sceneName}: ${blocking.message}`, level: 'error' })
       return false
     }
     const outputDir = resolvedOutputDir(s, job)
@@ -956,7 +951,7 @@ export class Engine extends EventEmitter {
       fs.mkdirSync(outputDir, { recursive: true })
     } catch (e) {
       job.status = 'failed'
-      job.error = `Could not create output folder: ${(e as Error).message}`
+      job.error = `저장 폴더 생성 실패: ${(e as Error).message}`
       this.runSet.delete(job.id)
       this.runHadFailure = true
       this.jlog(job, null, 'error', job.error)
@@ -984,8 +979,8 @@ export class Engine extends EventEmitter {
     job.runMode = 'missing'
     const choice = this.pick(job, s)
     job.versionUsed = choice.install?.version ?? null
-    const skippedNote = job.doneFrames.length ? `; skipping ${job.doneFrames.length} existing frames` : ''
-    this.jlog(job, null, 'system', `Job started: ${all.length} frames${skippedNote}; output: ${outputDir}`)
+    const skippedNote = job.doneFrames.length ? `, 기존 프레임 ${job.doneFrames.length}개 건너뜀` : ''
+    this.jlog(job, null, 'system', `작업 시작: 프레임 ${all.length}개${skippedNote}, 저장 위치 ${outputDir}`)
     if (!todo.length) {
       this.finalizeJob(job)
       return false
@@ -1031,7 +1026,7 @@ export class Engine extends EventEmitter {
     this.runTasksStarted++
     if (!choice.install) {
       task.status = 'failed'
-      task.error = `${APP_LABEL[job.app]} installation not found`
+      task.error = `${APP_LABEL[job.app]} 설치 없음`
       this.jlog(job, task, 'error', task.error)
       this.afterTask(job)
       return
@@ -1052,7 +1047,7 @@ export class Engine extends EventEmitter {
       })
     } catch (e) {
       task.status = 'failed'
-      task.error = `Could not build render command: ${(e as Error).message}`
+      task.error = `명령 구성 실패: ${(e as Error).message}`
       this.jlog(job, task, 'error', task.error)
       this.afterTask(job)
       return
@@ -1083,10 +1078,10 @@ export class Engine extends EventEmitter {
       job,
       task,
       'system',
-      `Render process started: frames ${range}${task.attempt ? `; retry ${task.attempt}` : ''}; ${APP_LABEL[job.app]} ${choice.install.version}; renderer: ${cmd.renderer}`,
+      `렌더 프로세스 시작: 프레임 ${range}${task.attempt ? `, 재시도 ${task.attempt}회차` : ''}, ${APP_LABEL[job.app]} ${choice.install.version}, 렌더러 ${cmd.renderer}`,
       ctx
     )
-    this.jlog(job, task, 'info', `Command: ${quoteArg(cmd.exe)} ${cmd.args.map(quoteArg).join(' ')}`, ctx)
+    this.jlog(job, task, 'info', `명령: ${quoteArg(cmd.exe)} ${cmd.args.map(quoteArg).join(' ')}`, ctx)
     proc.on('event', (e: RunnerEvent) => this.onRunnerEvent(ctx, e))
     proc.once('exit', (code: number | null, signal: string | null) => this.onTaskExit(ctx, code, signal))
     task.pid = proc.start()
@@ -1100,7 +1095,7 @@ export class Engine extends EventEmitter {
         if (e.level === 'error') ctx.errors++
         if (!ctx.licenseFail && LICENSE_FAIL_RE.test(e.text)) {
           ctx.licenseFail = true
-          this.jlog(job, task, 'system', 'Could not acquire an Arnold license', ctx)
+          this.jlog(job, task, 'system', 'Arnold 라이선스를 받지 못함', ctx)
         }
         this.jlog(job, task, e.level, e.text, ctx, { raw: e.level !== 'progress' })
         if (e.level === 'progress') this.emit('change')
@@ -1122,7 +1117,7 @@ export class Engine extends EventEmitter {
         task.percent = e.percent
         break
       case 'boot':
-        this.jlog(job, task, 'system', `${APP_LABEL[job.app]} render session started (${e.version})`, ctx)
+        this.jlog(job, task, 'system', `${APP_LABEL[job.app]} 렌더 세션 시작 확인 (${e.version})`, ctx)
         break
       case 'device': {
         const [kind, ...names] = e.text.split(' ')
@@ -1130,7 +1125,7 @@ export class Engine extends EventEmitter {
           job,
           task,
           'system',
-          kind === 'CPU' ? 'Render device: CPU' : `Render device: GPU ${kind}${names.length ? ` (${names.join(' ')})` : ''}`,
+          kind === 'CPU' ? '렌더 장치: CPU' : `렌더 장치: GPU ${kind}${names.length ? ` (${names.join(' ')})` : ''}`,
           ctx
         )
         break
@@ -1222,7 +1217,7 @@ export class Engine extends EventEmitter {
       const next = this.licenseGapMs ? Math.min(this.licenseGapMs * 2, base * 3) : base
       if (next !== this.licenseGapMs) {
         this.licenseGapMs = next
-        this.syslog('system', `Waiting ${Math.round(next / 1000)} seconds between renders for Arnold license release`)
+        this.syslog('system', `Arnold 라이선스 반환 대기를 위해 렌더 사이 간격 ${Math.round(next / 1000)}초 적용`)
       }
     }
     task.exitCode = code
@@ -1234,16 +1229,16 @@ export class Engine extends EventEmitter {
     const missing = ctx.expected.filter((f) => !doneSet.has(f))
     if (killed) {
       task.status = 'stopped'
-      this.jlog(job, task, 'system', `Render process stopped by user; ${ctx.confirmed.size} frames complete`, ctx)
+      this.jlog(job, task, 'system', `렌더 프로세스 종료됨 (사용자 중지), 완료 프레임 ${ctx.confirmed.size}개`, ctx)
     } else if (!missing.length) {
       task.status = 'done'
       task.percent = 100
-      if (code !== 0) this.jlog(job, task, 'warn', `Exit code ${code ?? signal}; all frame files verified, marking complete`, ctx)
+      if (code !== 0) this.jlog(job, task, 'warn', `종료 코드 ${code ?? signal}, 모든 프레임 파일이 확인되어 완료 처리`, ctx)
       this.jlog(
         job,
         task,
         'system',
-        `Render process complete: ${ctx.expected.length} frames in ${formatDuration(task.finishedAt - (task.startedAt ?? task.finishedAt))}`,
+        `렌더 프로세스 완료: ${ctx.expected.length}프레임, ${formatDuration(task.finishedAt - (task.startedAt ?? task.finishedAt))}`,
         ctx
       )
     } else {
@@ -1251,13 +1246,13 @@ export class Engine extends EventEmitter {
       const lic = ctx.licenseFail
       const licTries = task.licenseTries ?? 0
       task.error = lic
-        ? 'Arnold license check failed'
+        ? 'Arnold 라이선스 확인 실패'
         : code !== 0
           ? describeExit(code, signal, job.app === 'blender' ? 'Blender' : process.platform === 'win32' ? 'Render.exe' : 'Maya Render')
-          : 'No frame files found'
+          : '프레임 파일 없음'
       const live = this.running && !this.stopRequested && job.status === 'rendering'
       const canRetry = live && (lic ? licTries < LICENSE_TRIES : task.attempt < this.app.maxRetries)
-      this.jlog(job, task, canRetry ? (lic ? 'system' : 'warn') : 'error', `${task.error}; missing frames: ${compactFrames(missing)}`, ctx)
+      this.jlog(job, task, canRetry ? (lic ? 'system' : 'warn') : 'error', `${task.error}, 빠진 프레임 ${compactFrames(missing)}`, ctx)
       if (canRetry) {
         const delay = lic ? this.licenseGapMs : code !== 0 ? this.retryDelays.crash : this.retryDelays.missing
         const notBefore = Date.now() + delay
@@ -1269,8 +1264,8 @@ export class Engine extends EventEmitter {
         const idx = job.tasks.indexOf(task)
         job.tasks.splice(idx + 1, 0, ...retries)
         const note = lic
-          ? `Queued missing frames ${compactFrames(missing)} for retry (license wait ${licTries + 1}/${LICENSE_TRIES})`
-          : `Queued missing frames for retry (${task.attempt + 1}/${this.app.maxRetries}); starting in ${Math.round(delay / 1000)} seconds`
+          ? `빠진 프레임 ${compactFrames(missing)} 다시 렌더 예약 (라이선스 대기 ${licTries + 1}/${LICENSE_TRIES})`
+          : `빠진 프레임 재시도 예약 (${task.attempt + 1}/${this.app.maxRetries}), ${Math.round(delay / 1000)}초 후 시작`
         this.jlog(job, task, 'system', note, ctx, { mirror: true })
       } else {
         this.runHadFailure = true
@@ -1296,14 +1291,14 @@ export class Engine extends EventEmitter {
       for (const f of gaps) ctx.confirmed.delete(f)
       const gapSet = new Set(gaps)
       job.doneFrames = job.doneFrames.filter((f) => !gapSet.has(f))
-      this.jlog(job, task, 'warn', `Render reported complete, but files are missing: ${compactFrames(gaps)}`, ctx)
+      this.jlog(job, task, 'warn', `완료 신호는 있으나 파일 없음: ${compactFrames(gaps)}`, ctx)
     } else if (ctx.confirmed.size) {
       if (ctx.confirmed.size === ctx.expected.length && !ctx.errors && !ctx.licenseFail) {
         this.jlog(
           job,
           task,
           'warn',
-          `Frame files were not found; using render completion signals. Check the output path: ${ctx.outputDir}`,
+          `저장 폴더에서 프레임 파일을 찾지 못해 렌더 완료 신호 기준으로 판정, 저장 경로 확인 필요 (${ctx.outputDir})`,
           ctx
         )
         return
@@ -1312,7 +1307,7 @@ export class Engine extends EventEmitter {
       const dropSet = new Set(dropped)
       ctx.confirmed.clear()
       job.doneFrames = job.doneFrames.filter((f) => !dropSet.has(f))
-      this.jlog(job, task, 'warn', `Frames remain incomplete because output files are missing: ${compactFrames(dropped)}`, ctx)
+      this.jlog(job, task, 'warn', `저장된 파일이 없어 완료로 처리하지 않음: ${compactFrames(dropped)}`, ctx)
     }
   }
 
@@ -1344,22 +1339,22 @@ export class Engine extends EventEmitter {
     if (!job.missingFrames.length) {
       job.status = 'done'
       job.error = null
-      this.jlog(job, null, 'system', `Job complete: ${job.frames.length} frames in ${formatDuration(job.elapsedMs)}`)
-      this.emit('notify', { title: 'Render complete', body: `${job.sceneName} (${job.frames.length} frames)`, level: 'info' })
+      this.jlog(job, null, 'system', `작업 완료: ${job.frames.length}프레임, ${formatDuration(job.elapsedMs)}`)
+      this.emit('notify', { title: '렌더 완료', body: `${job.sceneName} (${job.frames.length}프레임)`, level: 'info' })
       const s = effectiveSettings(this.global, job)
       if (s.makePreview) void this.makePreview(job, s)
     } else if (stopped) {
       job.status = 'stopped'
       job.runMode = 'missing'
-      this.jlog(job, null, 'system', `Job stopped: ${job.missingFrames.length} frames remaining`)
+      this.jlog(job, null, 'system', `작업 중단: 미완료 프레임 ${job.missingFrames.length}개`)
     } else {
       job.status = job.doneFrames.length ? 'partial' : 'failed'
       const cause = [...job.tasks].reverse().find((t) => t.status === 'failed' && t.error)?.error
-      job.error = `Missing frames: ${compactFrames(job.missingFrames)}${cause ? ` (${cause})` : ''}`
+      job.error = `빠진 프레임 ${compactFrames(job.missingFrames)}${cause ? ` (${cause})` : ''}`
       this.runHadFailure = true
-      this.jlog(job, null, 'error', `Job ${job.status === 'partial' ? 'finished with missing frames' : 'failed'}: ${job.error}`)
+      this.jlog(job, null, 'error', `작업 ${job.status === 'partial' ? '종료 (빠진 프레임 있음)' : '실패'}: ${job.error}`)
       this.emit('notify', {
-        title: job.status === 'partial' ? 'Missing frames' : 'Render failed',
+        title: job.status === 'partial' ? '빠진 프레임' : '렌더 실패',
         body: `${job.sceneName}: ${job.error}`,
         level: 'error'
       })
@@ -1370,7 +1365,7 @@ export class Engine extends EventEmitter {
   private async makePreview(job: Job, s: RenderSettings): Promise<void> {
     const ffmpeg = findFfmpeg(this.app.ffmpegPath)
     if (!ffmpeg || !job.outputDir) {
-      this.jlog(job, null, 'warn', 'Preview skipped: FFmpeg not found')
+      this.jlog(job, null, 'warn', '프리뷰 영상 생략: ffmpeg를 찾지 못함')
       return
     }
     const files = scanFrames(job.outputDir, prefixHint(resolvedPrefix(s, job)))
@@ -1378,7 +1373,7 @@ export class Engine extends EventEmitter {
     if (!seq) return
     const out = path.join(job.outputDir, `${job.sceneName}_preview.mp4`)
     const fps = s.previewFps || job.info.fps || 24
-    this.jlog(job, null, 'system', `Encoding preview (${fps} fps)`)
+    this.jlog(job, null, 'system', `프리뷰 영상 인코딩 시작 (${fps}fps)`)
     try {
       await encodePreview({
         ffmpeg,
@@ -1392,9 +1387,9 @@ export class Engine extends EventEmitter {
         out
       })
       job.previewVideo = out
-      this.jlog(job, null, 'system', `Preview created: ${out}`)
+      this.jlog(job, null, 'system', `프리뷰 영상 생성: ${out}`)
     } catch (e) {
-      this.jlog(job, null, 'warn', `Preview failed: ${(e as Error).message}`)
+      this.jlog(job, null, 'warn', `프리뷰 영상 실패: ${(e as Error).message}`)
     }
     this.changed()
   }
@@ -1407,17 +1402,17 @@ export class Engine extends EventEmitter {
     const done = this.jobs.filter((j) => j.status === 'done').length
     const failed = this.jobs.filter((j) => j.status === 'failed' || j.status === 'partial').length
     const elapsed = this.runStartedAt ? Date.now() - this.runStartedAt : 0
-    this.syslog('system', `Queue finished: ${done} complete, ${failed} failed; elapsed: ${formatDuration(elapsed)}`)
+    this.syslog('system', `렌더 종료: 완료 ${done}개, 실패 ${failed}개, 걸린 시간 ${formatDuration(elapsed)}`)
     this.endRun()
     if (attempted)
       this.emit('notify', {
-        title: 'Queue finished',
-        body: `${done} complete, ${failed} failed; elapsed: ${formatDuration(elapsed)}`,
+        title: '렌더 종료',
+        body: `완료 ${done}개, 실패 ${failed}개, 걸린 시간 ${formatDuration(elapsed)}`,
         level: failed ? 'error' : 'info'
       })
     const action = this.app.completionAction
     if (attempted && action !== 'none' && !this.stopRequested) {
-      if (this.runHadFailure && !this.app.completionOnFailure) this.syslog('warn', 'Completion action deferred because some scenes failed')
+      if (this.runHadFailure && !this.app.completionOnFailure) this.syslog('warn', '실패한 씬이 있어 끝난 뒤 작업 보류')
       else this.startCountdown(action)
     }
     this.changed()
@@ -1443,7 +1438,7 @@ export class Engine extends EventEmitter {
   private startCountdown(action: CompletionAction): void {
     this.completion.pendingAction = action
     this.completion.countdown = this.app.countdownSeconds
-    this.syslog('system', `Completion action: ${actionLabel(action)} in ${this.app.countdownSeconds} seconds`)
+    this.syslog('system', `끝난 뒤 작업 대기: ${actionLabel(action)}, ${this.app.countdownSeconds}초 후 실행`)
     this.emit('countdown', action)
     this.countdownTimer = setInterval(() => {
       if (this.completion.countdown === null) return
@@ -1457,7 +1452,7 @@ export class Engine extends EventEmitter {
   cancelCountdown(): void {
     if (this.countdownTimer) clearInterval(this.countdownTimer)
     this.countdownTimer = null
-    if (this.completion.pendingAction) this.syslog('system', 'Completion action cancelled')
+    if (this.completion.pendingAction) this.syslog('system', '끝난 뒤 작업 취소')
     this.completion.countdown = null
     this.completion.pendingAction = null
     this.changed(false)
@@ -1473,15 +1468,15 @@ export class Engine extends EventEmitter {
     this.saveNow()
     this.changed(false)
     if (action === 'quit') {
-      this.syslog('system', 'Application closed')
+      this.syslog('system', '앱 종료')
       this.emit('quit')
       return
     }
     try {
       const line = await runPowerAction(action, this.dryRunPower)
-      this.syslog('system', `${actionLabel(action)} executed: ${line}`)
+      this.syslog('system', `${actionLabel(action)} 실행: ${line}`)
     } catch (e) {
-      this.syslog('error', `${actionLabel(action)} failed: ${(e as Error).message}`)
+      this.syslog('error', `${actionLabel(action)} 실패: ${(e as Error).message}`)
     }
     this.changed(false)
   }
@@ -1529,11 +1524,11 @@ export function formatDuration(ms: number): string {
   const h = Math.floor(s / 3600)
   const m = Math.floor((s % 3600) / 60)
   const sec = s % 60
-  if (h) return `${h}h ${m}m`
-  if (m) return `${m}m ${sec}s`
-  return `${sec}s`
+  if (h) return `${h}시간 ${m}분`
+  if (m) return `${m}분 ${sec}초`
+  return `${sec}초`
 }
 
 export function actionLabel(a: CompletionAction): string {
-  return { none: 'None', sleep: 'Sleep', shutdown: 'Shut down', quit: 'Quit Render Farm' }[a]
+  return { none: '없음', sleep: '절전 모드', shutdown: 'PC 끄기', quit: 'Render Farm 닫기' }[a]
 }

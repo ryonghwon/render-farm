@@ -7,7 +7,7 @@ export function Field(props: { label: string; overridden?: boolean; onReset?: ()
       <label>
         {props.label}
         {props.overridden && props.onReset && (
-          <button className="reset" title="Reset to defaults" onClick={props.onReset}>
+          <button className="reset" title="기본값으로 복원" onClick={props.onReset}>
             <RotateCcw />
           </button>
         )}

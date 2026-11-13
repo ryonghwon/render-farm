@@ -247,7 +247,7 @@ export function probeDeep(scenePath: string, opts: DeepProbeOptions): Promise<Pa
     let out = ''
     const timer = setTimeout(() => {
       child.kill()
-      reject(new Error('mayapy inspection timed out'))
+      reject(new Error('mayapy 분석 시간 초과'))
     }, opts.timeoutMs)
     child.stdout.on('data', (d: Buffer) => (out += d.toString('utf8')))
     child.stderr.on('data', (d: Buffer) => (out += d.toString('utf8')))
@@ -258,7 +258,7 @@ export function probeDeep(scenePath: string, opts: DeepProbeOptions): Promise<Pa
     child.on('close', () => {
       clearTimeout(timer)
       const m = /@@RQ:PROBE (\{.*\})/.exec(out)
-      if (!m) return reject(new Error('mayapy returned no scene metadata'))
+      if (!m) return reject(new Error('mayapy 분석 결과 없음'))
       try {
         const d = JSON.parse(m[1])
         resolve({

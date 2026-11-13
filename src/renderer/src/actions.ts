@@ -11,7 +11,7 @@ export async function requestStart(force = false): Promise<void> {
   const { openPreflight, toast } = useUi.getState()
   const jobs = pendingJobs()
   if (!jobs.length) {
-    toast('No scenes selected for rendering.', 'error')
+    toast('렌더 대상 씬이 없습니다.', 'error')
     return
   }
   const needs = jobs.filter((j) => j.issues.some((i) => i.level === 'error' || i.level === 'warn'))
@@ -24,15 +24,16 @@ export async function requestStart(force = false): Promise<void> {
 }
 
 export async function addScenes(kind: 'files' | 'folder'): Promise<void> {
+  const { toast } = useUi.getState()
   const r = kind === 'files' ? await window.rd.pickFiles() : await window.rd.pickFolder()
   reportAdd(r)
 }
 
 export function reportAdd(r: { added: number; skipped: number }, empty = false): void {
   const { toast } = useUi.getState()
-  if (r.added) toast(`Added ${r.added} scenes${r.skipped ? `; skipped ${r.skipped} duplicates` : ''}.`)
-  else if (r.skipped) toast(`${r.skipped} scenes are already in the queue.`)
-  else if (empty) toast('No scene files found (.ma, .mb, .blend).', 'error')
+  if (r.added) toast(`씬 ${r.added}개를 추가했습니다${r.skipped ? ` (중복 ${r.skipped}개 제외)` : ''}.`)
+  else if (r.skipped) toast(`이미 렌더 목록에 있는 씬입니다 (${r.skipped}개).`)
+  else if (empty) toast('추가할 씬 파일(.ma, .mb, .blend)이 없습니다.', 'error')
 }
 
 export function openSettingsGuarded(): void {

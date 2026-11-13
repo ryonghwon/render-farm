@@ -87,7 +87,7 @@ export class RenderProcess extends EventEmitter {
     child.stderr?.on('data', (d: Buffer) => this.feed('stderr', errDec.write(d)))
     child.on('error', (e) => {
       failed = true
-      this.emitEvent({ type: 'line', text: `Could not start process: ${e.message}`, level: 'error' })
+      this.emitEvent({ type: 'line', text: `프로세스 실행 실패: ${e.message}`, level: 'error' })
     })
     child.on('close', (code, signal) => {
       this.feed('stdout', outDec.end() ?? '')

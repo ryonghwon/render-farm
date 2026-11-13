@@ -21,6 +21,8 @@ The queue is saved between sessions. If rendering stops, completed frames remain
 - Output presets, administrator PIN protection, logs, and optional FFmpeg previews.
 - Sleep prevention while rendering and optional completion actions.
 
+The app retains its Korean interface. This repository’s documentation and illustrated guides use English.
+
 ## Install
 
 Download a package from [Releases](https://github.com/ryonghwon/render-farm/releases).
@@ -32,6 +34,8 @@ Download a package from [Releases](https://github.com/ryonghwon/render-farm/rele
 | Mac with Intel processor | `Render-Farm-<version>-macOS-x64.zip` |
 
 Run the Windows installer, or extract the Mac archive and move **Render Farm.app** to Applications. The portable Windows executable uses the same per-user settings directory as the installer.
+
+Mac archives are ad-hoc signed and checked for integrity, but are not notarized by Apple. Windows packages are unsigned. Your operating system may require approval before first launch. See the [first-launch guide](docs/TROUBLESHOOTING.md#mac-blocks-the-application).
 
 Maya or Blender must be installed separately, with any required render plugins and licenses. Render Farm runs on the local machine; a shared output folder does not distribute rendering to other computers. Node.js, Docker, and a separate browser are not required for packaged apps.
 

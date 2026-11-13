@@ -60,7 +60,7 @@ export function encodePreview(opts: {
     let err = ''
     child.stderr.on('data', (d: Buffer) => (err += d.toString()))
     child.on('error', reject)
-    child.on('close', (code) => (code === 0 ? resolve() : reject(new Error(err.trim() || `FFmpeg exit code: ${code}`))))
+    child.on('close', (code) => (code === 0 ? resolve() : reject(new Error(err.trim() || `ffmpeg 종료 코드 ${code}`))))
   })
 }
 

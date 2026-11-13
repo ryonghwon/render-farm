@@ -85,12 +85,12 @@ function createWindow(): void {
     e.preventDefault()
     const r = await dialog.showMessageBox(win!, {
       type: 'warning',
-      buttons: ['Stop rendering and quit', 'Keep rendering'],
+      buttons: ['렌더 중지 후 종료', '계속 렌더'],
       defaultId: 1,
       cancelId: 1,
       title: 'Render Farm',
-      message: 'Rendering is in progress.',
-      detail: 'Quitting stops active render processes. You can resume the remaining frames the next time you open the app.'
+      message: '렌더가 진행 중입니다.',
+      detail: '종료하면 진행 중인 렌더 프로세스가 중지됩니다. 다음 실행 시 남은 프레임부터 이어서 렌더할 수 있습니다.'
     })
     if (r.response === 0) {
       quitting = true
@@ -123,7 +123,7 @@ async function previewFor(jobId: string): Promise<PreviewInfo> {
   const job = engine.jobs.find((j) => j.id === jobId)
   const video = job?.previewVideo && fs.existsSync(job.previewVideo) ? `rdfile://local/${encodeURIComponent(job.previewVideo)}` : null
   const lf = engine.latestFrame(jobId)
-  if (!lf) return { frame: null, path: null, dataUrl: null, video, message: 'No rendered frames' }
+  if (!lf) return { frame: null, path: null, dataUrl: null, video, message: '렌더된 프레임 없음' }
   const ext = path.extname(lf.path).toLowerCase()
   try {
     if (ext === '.png' || ext === '.jpg' || ext === '.jpeg') {
@@ -141,7 +141,7 @@ async function previewFor(jobId: string): Promise<PreviewInfo> {
         path: lf.path,
         dataUrl: null,
         video,
-        message: `FFmpeg is required to preview ${ext.slice(1).toUpperCase()} files`
+        message: `${ext.slice(1).toUpperCase()} 미리보기에 ffmpeg 필요`
       }
     const cacheDir = path.join(app.getPath('temp'), 'renderfarm-thumbs')
     fs.mkdirSync(cacheDir, { recursive: true })
@@ -154,10 +154,10 @@ async function previewFor(jobId: string): Promise<PreviewInfo> {
       path: lf.path,
       dataUrl: img.isEmpty() ? null : img.toDataURL(),
       video,
-      message: img.isEmpty() ? 'Could not generate preview' : null
+      message: img.isEmpty() ? '미리보기 생성 실패' : null
     }
   } catch (e) {
-    return { frame: lf.frame, path: lf.path, dataUrl: null, video, message: `Could not generate preview: ${(e as Error).message}` }
+    return { frame: lf.frame, path: lf.path, dataUrl: null, video, message: `미리보기 생성 실패: ${(e as Error).message}` }
   }
 }
 
@@ -172,18 +172,18 @@ function registerIpc(): void {
   h('jobs:add', (paths: string[]) => engine.addPaths(paths))
   h('jobs:pickFiles', async () => {
     const r = await dialog.showOpenDialog(win!, {
-      title: 'Add scene files',
+      title: '씬 파일 추가',
       properties: ['openFile', 'multiSelections'],
       filters: [
-        { name: 'Scene files', extensions: ['ma', 'mb', 'blend'] },
-        { name: 'Maya scenes', extensions: ['ma', 'mb'] },
-        { name: 'Blender files', extensions: ['blend'] }
+        { name: '씬 파일', extensions: ['ma', 'mb', 'blend'] },
+        { name: 'Maya 씬', extensions: ['ma', 'mb'] },
+        { name: 'Blender 파일', extensions: ['blend'] }
       ]
     })
     return r.canceled ? { added: 0, skipped: 0 } : engine.addPaths(r.filePaths)
   })
   h('jobs:pickFolder', async () => {
-    const r = await dialog.showOpenDialog(win!, { title: 'Add folder', properties: ['openDirectory', 'multiSelections'] })
+    const r = await dialog.showOpenDialog(win!, { title: '폴더 추가', properties: ['openDirectory', 'multiSelections'] })
     return r.canceled ? { added: 0, skipped: 0 } : engine.addPaths(r.filePaths)
   })
   h('jobs:remove', (ids: string[]) => engine.removeJobs(ids))
@@ -216,11 +216,11 @@ function registerIpc(): void {
       title:
         process.platform === 'darwin'
           ? app === 'blender'
-            ? 'Choose Blender application'
-            : 'Choose Maya application'
+            ? 'Blender 앱 선택'
+            : 'Maya 앱 선택'
           : app === 'blender'
-            ? 'Choose blender.exe'
-            : 'Choose Render.exe',
+            ? 'blender.exe 선택'
+            : 'Render.exe 선택',
       properties: ['openFile'],
       filters: process.platform === 'win32' ? [{ name: app === 'blender' ? 'blender.exe' : 'Render.exe', extensions: ['exe'] }] : []
     })
@@ -229,14 +229,14 @@ function registerIpc(): void {
   h('apps:remove', (id: string) => engine.removeInstall(id))
   h('dialog:outputDir', async (current?: string) => {
     const r = await dialog.showOpenDialog(win!, {
-      title: 'Choose output folder',
+      title: '저장 폴더 선택',
       defaultPath: current || undefined,
       properties: ['openDirectory', 'createDirectory']
     })
     return r.canceled ? null : r.filePaths[0]
   })
   h('dialog:ffmpeg', async () => {
-    const r = await dialog.showOpenDialog(win!, { title: 'Choose FFmpeg', properties: ['openFile'] })
+    const r = await dialog.showOpenDialog(win!, { title: 'ffmpeg 선택', properties: ['openFile'] })
     return r.canceled ? null : r.filePaths[0]
   })
   h('shell:open', async (p: string) => {

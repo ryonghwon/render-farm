@@ -138,13 +138,13 @@ async function openSource(file: string): Promise<ByteSource> {
   if (magic.readUInt32BE(0) === 0x28b52ffd) {
     if (!(zlib as unknown as ZstdZlib).zstdDecompressSync) {
       await fd.close()
-      throw new Error('This runtime cannot read compressed .blend files')
+      throw new Error('압축된 .blend를 읽을 수 없는 실행 환경')
     }
     const size = (await fd.stat()).size
     const sizes = await zstdFrames(fd, size)
     if (!sizes) {
       await fd.close()
-      throw new Error('Invalid compressed file structure')
+      throw new Error('압축 구조를 읽을 수 없음')
     }
     return new StreamSource(zstdChunks(fd, sizes), () => fd.close())
   }
@@ -189,7 +189,7 @@ class Sdna {
     const align = () => {
       o = (o + 3) & ~3
     }
-    if (tag() !== 'SDNA' || tag() !== 'NAME') throw new Error('Invalid SDNA structure')
+    if (tag() !== 'SDNA' || tag() !== 'NAME') throw new Error('SDNA 형식 오류')
     const nNames = data.readInt32LE(o)
     o += 4
     const names: string[] = []
@@ -199,7 +199,7 @@ class Sdna {
       o = e + 1
     }
     align()
-    if (tag() !== 'TYPE') throw new Error('Invalid SDNA structure')
+    if (tag() !== 'TYPE') throw new Error('SDNA 형식 오류')
     const nTypes = data.readInt32LE(o)
     o += 4
     for (let i = 0; i < nTypes; i++) {
@@ -208,13 +208,13 @@ class Sdna {
       o = e + 1
     }
     align()
-    if (tag() !== 'TLEN') throw new Error('Invalid SDNA structure')
+    if (tag() !== 'TLEN') throw new Error('SDNA 형식 오류')
     for (let i = 0; i < nTypes; i++) {
       this.lens.push(data.readUInt16LE(o))
       o += 2
     }
     align()
-    if (tag() !== 'STRC') throw new Error('Invalid SDNA structure')
+    if (tag() !== 'STRC') throw new Error('SDNA 형식 오류')
     const nStructs = data.readInt32LE(o)
     o += 4
     for (let i = 0; i < nStructs; i++) {
@@ -372,22 +372,22 @@ export async function probeBlend(file: string): Promise<SceneInfo> {
   const src = await openSource(file)
   try {
     const head = await src.read(12)
-    if (!head || head.toString('latin1', 0, 7) !== 'BLENDER') throw new Error('Not a Blender file')
+    if (!head || head.toString('latin1', 0, 7) !== 'BLENDER') throw new Error('Blender 파일이 아닙니다')
     let ptr: number
     let large = false
     let verCode: string
     if (/\d/.test(String.fromCharCode(head[7]))) {
       const size = Number(head.toString('latin1', 7, 9))
       const rest = await src.read(size - 12)
-      if (!rest) throw new Error('Corrupt file header')
+      if (!rest) throw new Error('파일 헤더 손상')
       const h = Buffer.concat([head, rest]).toString('latin1')
       ptr = h[9] === '_' ? 4 : 8
-      if (h[12] !== 'v') throw new Error('Unsupported byte order')
+      if (h[12] !== 'v') throw new Error('지원하지 않는 바이트 순서')
       verCode = h.slice(13, size)
       large = true
     } else {
       ptr = head[7] === 0x5f ? 4 : 8
-      if (head[8] !== 0x76) throw new Error('Unsupported byte order')
+      if (head[8] !== 0x76) throw new Error('지원하지 않는 바이트 순서')
       verCode = head.toString('latin1', 9, 12)
     }
     info.version = blenderVersion(verCode)
@@ -424,7 +424,7 @@ export async function probeBlend(file: string): Promise<SceneInfo> {
       } else if (!(await src.skip(len))) break
     }
     const dnaBlock = blocks.find((b) => b.code === 'DNA1')
-    if (!dnaBlock) throw new Error('Scene metadata block not found')
+    if (!dnaBlock) throw new Error('씬 정보 블록 없음')
     const dna = new Sdna(dnaBlock.data, ptr)
     const view = (b: Block, offset = 0) => new View(dna, dna.byIndex[b.sdna], offset ? b.data.subarray(offset) : b.data, ptr)
     const byOld = new Map<bigint, Block>()
@@ -433,7 +433,7 @@ export async function probeBlend(file: string): Promise<SceneInfo> {
     const glob = blocks.find((b) => b.code === 'GLOB')
     const cur = glob ? view(glob).ptrAt('curscene') : 0n
     const sceneBlock = scenes.find((b) => b.old === cur) ?? scenes.find((b) => !view(b).ptrAt('id.lib')) ?? scenes[0]
-    if (!sceneBlock) throw new Error('No scene found')
+    if (!sceneBlock) throw new Error('씬이 없습니다')
     const sc = view(sceneBlock)
     const pct = sc.int('r.size') || 100
     const xsch = sc.int('r.xsch')
@@ -531,7 +531,7 @@ export function probeBlenderDeep(blender: string, scenePath: string, scriptPath:
     let out = ''
     const timer = setTimeout(() => {
       child.kill()
-      reject(new Error('Blender inspection timed out'))
+      reject(new Error('Blender 분석 시간 초과'))
     }, timeoutMs)
     child.stdout.on('data', (d: Buffer) => (out += d.toString('utf8')))
     child.stderr.on('data', (d: Buffer) => (out += d.toString('utf8')))
@@ -542,7 +542,7 @@ export function probeBlenderDeep(blender: string, scenePath: string, scriptPath:
     child.on('close', () => {
       clearTimeout(timer)
       const m = /@@RQ:PROBE (\{.*\})/.exec(out)
-      if (!m) return reject(new Error('Blender returned no scene metadata'))
+      if (!m) return reject(new Error('Blender 분석 결과 없음'))
       try {
         const d = JSON.parse(m[1])
         const info = emptySceneInfo()

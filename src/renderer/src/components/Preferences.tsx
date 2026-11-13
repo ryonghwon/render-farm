@@ -1,3 +1,4 @@
+type Pane = 'defaults' | 'run' | 'after' | 'maya' | 'lock' | 'etc'
 import type { AppInfo, CompletionAction, RenderSettings, SettingsKey } from '@shared/types'
 import { Cpu, Lock, MonitorCog, Plus, Power, RefreshCcw, SlidersHorizontal, Trash2, Wrench, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -5,12 +6,74 @@ import { APP_LABEL } from '../format'
 import { useUi } from '../store'
 import { Field, NumberInput, Select, Toggle } from './controls'
 import { AdvancedFields } from './SceneDialog'
-
 const MAC = navigator.userAgent.includes('Macintosh')
-
-type Pane = 'defaults' | 'run' | 'after' | 'maya' | 'lock' | 'etc'
-
 let relockOnClose = false
+
+export function PinDialog() {
+  const open = useUi((s) => s.pinPrompt)
+  const setOpen = useUi((s) => s.openPin)
+  const openSettings = useUi((s) => s.openSettings)
+  const [pin, setPin] = useState('')
+  const [err, setErr] = useState(false)
+  useEffect(() => {
+    if (!open) return
+    setPin('')
+    setErr(false)
+    const key = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
+    window.addEventListener('keydown', key)
+    return () => window.removeEventListener('keydown', key)
+  }, [open, setOpen])
+  if (!open) return null
+  const submit = async () => {
+    const ok = await window.rd.unlock(pin)
+    if (ok) {
+      relockOnClose = true
+      setOpen(false)
+      openSettings(true)
+    } else {
+      setErr(true)
+      setPin('')
+    }
+  }
+  return (
+    <div className="modal-back" onMouseDown={(e) => e.target === e.currentTarget && setOpen(false)}>
+      <div className="modal narrow" role="dialog" aria-labelledby="pin-title">
+        <div className="modal-head">
+          <h2 id="pin-title">설정 잠김</h2>
+        </div>
+        <div className="modal-body">
+          <p className="hint" style={{ marginTop: 0 }}>
+            환경 설정을 변경하려면 관리자 PIN을 입력하세요.
+          </p>
+          <input
+            className="input pin-input"
+            type="password"
+            inputMode="numeric"
+            autoFocus
+            maxLength={12}
+            value={pin}
+            onChange={(e) => setPin(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && submit()}
+            aria-label="PIN"
+          />
+          {err && (
+            <div className="hint" style={{ color: 'var(--red)', marginTop: 6 }}>
+              PIN이 일치하지 않습니다.
+            </div>
+          )}
+        </div>
+        <div className="modal-foot">
+          <button className="btn" onClick={() => setOpen(false)}>
+            취소
+          </button>
+          <button className="btn primary" disabled={!pin} onClick={submit}>
+            잠금 해제
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export function SettingsModal({ info }: { info: AppInfo | null }) {
   const open = useUi((s) => s.settingsOpen)
@@ -49,24 +112,24 @@ export function SettingsModal({ info }: { info: AppInfo | null }) {
   const cores = info?.cores ?? 0
   const armed = app.completionAction !== 'none'
   const nav: { id: Pane; label: string; icon: React.ReactNode }[] = [
-    { id: 'defaults', label: 'Defaults', icon: <Wrench /> },
-    { id: 'run', label: 'Processing', icon: <Cpu /> },
-    { id: 'after', label: 'On completion', icon: <Power /> },
-    { id: 'maya', label: 'Applications', icon: <MonitorCog /> },
-    { id: 'lock', label: 'Lock', icon: <Lock /> },
-    { id: 'etc', label: 'Advanced', icon: <SlidersHorizontal /> }
+    { id: 'defaults', label: '기본값', icon: <Wrench /> },
+    { id: 'run', label: '실행', icon: <Cpu /> },
+    { id: 'after', label: '끝난 뒤 작업', icon: <Power /> },
+    { id: 'maya', label: '프로그램', icon: <MonitorCog /> },
+    { id: 'lock', label: '잠금', icon: <Lock /> },
+    { id: 'etc', label: '고급', icon: <SlidersHorizontal /> }
   ]
   return (
     <div className="modal-back" onMouseDown={(e) => e.target === e.currentTarget && close()}>
       <div className="modal wide" role="dialog" aria-labelledby="st-title">
         <div className="modal-head">
-          <h2 id="st-title">Preferences</h2>
-          <button className="btn ghost icon" aria-label="Close" onClick={close}>
+          <h2 id="st-title">환경 설정</h2>
+          <button className="btn ghost icon" aria-label="닫기" onClick={close}>
             <X />
           </button>
         </div>
         <div className="settings-layout">
-          <nav className="settings-nav" aria-label="Preference sections">
+          <nav className="settings-nav" aria-label="설정 항목">
             {nav.map((n) => (
               <button key={n.id} className={pane === n.id ? 'on' : ''} onClick={() => setPane(n.id)}>
                 {n.icon}
@@ -78,24 +141,24 @@ export function SettingsModal({ info }: { info: AppInfo | null }) {
             {pane === 'defaults' && (
               <>
                 <div className="section">
-                  <h3>Presets</h3>
-                  <Field label="Load" hint="Apply a saved set of defaults.">
+                  <h3>프리셋</h3>
+                  <Field label="불러오기" hint="저장된 기본값을 일괄 적용합니다.">
                     <div className="field-row">
                       <Select
                         value=""
                         options={[
-                          { value: '', label: snap.presets.length ? 'Choose a preset' : 'No presets saved' },
+                          { value: '', label: snap.presets.length ? '프리셋 선택' : '저장된 프리셋 없음' },
                           ...snap.presets.map((p) => ({ value: p.id, label: p.name }))
                         ]}
                         onChange={(v) => {
                           if (!v) return
                           void window.rd.applyPreset(v)
-                          toast(`Preset applied: ${snap.presets.find((p) => p.id === v)?.name}`)
+                          toast(`프리셋을 적용했습니다: ${snap.presets.find((p) => p.id === v)?.name}`)
                         }}
-                        ariaLabel="Presets"
+                        ariaLabel="프리셋"
                       />
                       <button className="btn" onClick={() => openPreset(true)}>
-                        Save current settings
+                        현재 값 저장
                       </button>
                     </div>
                     {snap.presets.length > 0 && (
@@ -105,7 +168,7 @@ export function SettingsModal({ info }: { info: AppInfo | null }) {
                             <span className="p">{p.name}</span>
                             <button
                               className="btn small ghost icon"
-                              aria-label={`Delete ${p.name}`}
+                              aria-label={`${p.name} 삭제`}
                               onClick={() => window.rd.deletePreset(p.id)}
                             >
                               <Trash2 />
@@ -118,11 +181,8 @@ export function SettingsModal({ info }: { info: AppInfo | null }) {
                 </div>
                 {snap.lock.enabled && (
                   <div className="section">
-                    <h3>Locked output settings</h3>
-                    <Field
-                      label="Output folder"
-                      hint="Changes are disabled while settings are locked. Choose a writable local or mounted folder."
-                    >
+                    <h3>고정 저장 설정</h3>
+                    <Field label="저장 폴더" hint="잠금 상태에서는 변경할 수 없습니다. 다중 PC 렌더 시 마스터 공유 폴더 경로를 권장합니다.">
                       <div className="field-row">
                         <div
                           className="path-box"
@@ -132,12 +192,12 @@ export function SettingsModal({ info }: { info: AppInfo | null }) {
                           }}
                         >
                           <span>
-                            <bdi>{g.outputRoot || 'Not set'}</bdi>
+                            <bdi>{g.outputRoot || '지정되지 않음'}</bdi>
                           </span>
                         </div>
                       </div>
                     </Field>
-                    <Field label="File format">
+                    <Field label="파일 형식">
                       <Select
                         value={g.format}
                         options={[
@@ -145,7 +205,7 @@ export function SettingsModal({ info }: { info: AppInfo | null }) {
                           { value: 'png', label: 'PNG' },
                           { value: 'jpg', label: 'JPEG' },
                           { value: 'tif', label: 'TIFF' },
-                          { value: 'scene', label: 'Use scene setting' }
+                          { value: 'scene', label: '씬 그대로' }
                         ]}
                         onChange={(v) => setG({ format: v as RenderSettings['format'] })}
                       />
@@ -153,16 +213,16 @@ export function SettingsModal({ info }: { info: AppInfo | null }) {
                   </div>
                 )}
                 <div className="section">
-                  <h3>Scene defaults</h3>
+                  <h3>씬 기본값</h3>
                   <p className="hint" style={{ marginTop: -4, marginBottom: 12 }}>
-                    Applies to scenes without overrides. Change the output folder and file format in the Output panel.
+                    따로 설정하지 않은 씬에 적용됩니다. 저장 폴더와 파일 형식은 메인 화면 오른쪽의 저장 패널에서 변경합니다.
                   </p>
-                  <Field label="Frame range">
+                  <Field label="프레임 범위">
                     <Select
                       value={g.frameMode === 'custom' ? 'scene' : g.frameMode}
                       options={[
-                        { value: 'scene', label: 'Render range' },
-                        { value: 'timeline', label: 'Timeline range' }
+                        { value: 'scene', label: '렌더 설정 범위' },
+                        { value: 'timeline', label: '타임라인 범위' }
                       ]}
                       onChange={(v) => setG({ frameMode: v as RenderSettings['frameMode'] })}
                     />
@@ -173,36 +233,36 @@ export function SettingsModal({ info }: { info: AppInfo | null }) {
             )}
             {pane === 'run' && (
               <div className="section">
-                <h3>Processing</h3>
-                <Field label="Parallel rendering" hint="Render multiple scenes at once. Higher concurrency increases memory use.">
-                  <Toggle on={app.concurrency > 1} onChange={(v) => up({ concurrency: v ? 2 : 1 })} label="Enable parallel rendering" />
+                <h3>실행</h3>
+                <Field label="병렬 렌더" hint="여러 씬을 동시에 렌더합니다. 처리량이 늘어나는 대신 메모리 사용량이 증가합니다.">
+                  <Toggle on={app.concurrency > 1} onChange={(v) => up({ concurrency: v ? 2 : 1 })} label="병렬 렌더 사용" />
                   {app.concurrency > 1 && (
                     <div className="field-row">
                       <NumberInput value={app.concurrency} min={2} max={8} onCommit={(v) => up({ concurrency: v })} width={56} />
-                      <span className="hint">concurrent tasks</span>
+                      <span className="hint">개 동시 실행</span>
                     </div>
                   )}
                 </Field>
                 <Field
-                  label="Threads per task"
-                  hint={`0 selects automatically: all cores for a single task, or a share of ${cores || 'N'} logical cores for parallel tasks.`}
+                  label="프로세스당 스레드"
+                  hint={`0은 자동입니다. 순차 렌더 시 전체 코어를, 병렬 렌더 시 논리 코어 ${cores || 'N'}개를 나눠 사용합니다.`}
                 >
                   <NumberInput value={app.threadsPerTask} min={0} max={256} onCommit={(v) => up({ threadsPerTask: v })} width={60} />
                 </Field>
-                <Field label="Retry failed frames" hint="Retry missing frames up to the specified limit when a render stops.">
+                <Field label="실패 시 재시도" hint="렌더가 중단되면 빠진 프레임만 지정 횟수까지 다시 렌더합니다.">
                   <div className="field-row">
                     <NumberInput value={app.maxRetries} min={0} max={10} onCommit={(v) => up({ maxRetries: v })} width={56} />
-                    <span className="hint">retries</span>
+                    <span className="hint">회</span>
                   </div>
                 </Field>
-                <Field label="Arnold log level">
+                <Field label="Arnold 로그 수준">
                   <Select
                     value={String(app.arnoldVerbosity)}
                     options={[
-                      { value: '0', label: 'Errors' },
-                      { value: '1', label: 'Warnings' },
-                      { value: '2', label: 'Info (shows progress)' },
-                      { value: '3', label: 'Debug' }
+                      { value: '0', label: '오류' },
+                      { value: '1', label: '경고' },
+                      { value: '2', label: '정보 (진행률 표시, 권장)' },
+                      { value: '3', label: '디버그' }
                     ]}
                     onChange={(v) => up({ arnoldVerbosity: Number(v) })}
                   />
@@ -211,45 +271,47 @@ export function SettingsModal({ info }: { info: AppInfo | null }) {
             )}
             {pane === 'after' && (
               <div className="section">
-                <h3>On completion</h3>
-                <Field label="Action" hint="Runs when the completion switch in the main window is enabled.">
+                <h3>끝난 뒤 작업</h3>
+                <Field label="작업" hint="메인 화면의 '끝나면' 스위치가 켜져 있을 때 실행합니다.">
                   <Select<Exclude<CompletionAction, 'none'>>
                     value={app.completionKind ?? 'shutdown'}
                     options={[
-                      { value: 'shutdown', label: 'Shut down' },
-                      { value: 'sleep', label: 'Sleep' },
-                      { value: 'quit', label: 'Quit Render Farm' }
+                      { value: 'shutdown', label: 'PC 끄기' },
+                      { value: 'sleep', label: '절전 모드' },
+                      { value: 'quit', label: 'Render Farm 닫기' }
                     ]}
                     onChange={(v) => up({ completionKind: v, completionAction: armed ? v : 'none' })}
                   />
                 </Field>
-                <Field label="Countdown" hint="Shows a countdown before the action. You can cancel during this period.">
+                <Field label="취소 대기 시간" hint="실행 전 카운트다운을 표시하며 그 사이 취소할 수 있습니다.">
                   <div className="field-row">
                     <NumberInput value={app.countdownSeconds} min={5} max={600} onCommit={(v) => up({ countdownSeconds: v })} width={64} />
-                    <span className="hint">seconds</span>
+                    <span className="hint">초</span>
                   </div>
                 </Field>
-                <Field label="If scenes fail">
+                <Field label="실패 씬 발생 시">
                   <Toggle
                     on={app.completionOnFailure}
                     onChange={(v) => up({ completionOnFailure: v })}
-                    label="Run completion action"
-                    hint="Turn off to prevent the completion action when any scene fails."
+                    label="작업 실행"
+                    hint="해제하면 실패한 씬이 있을 때 실행하지 않습니다."
                   />
                 </Field>
-                <Field label="Prevent sleep">
-                  <Toggle on={app.keepAwake} onChange={(v) => up({ keepAwake: v })} label="Keep the computer awake while rendering" />
+                <Field label="절전 방지">
+                  <Toggle on={app.keepAwake} onChange={(v) => up({ keepAwake: v })} label="렌더 중 절전 모드 진입 방지" />
                 </Field>
-                <Field label="Notifications">
-                  <Toggle on={app.notifications} onChange={(v) => up({ notifications: v })} label="Notify when scenes complete or fail" />
+                <Field label="알림">
+                  <Toggle on={app.notifications} onChange={(v) => up({ notifications: v })} label="씬 완료 및 실패 시 알림 표시" />
                 </Field>
               </div>
             )}
             {pane === 'maya' && (
               <div className="section">
-                <h3>Installed applications</h3>
+                <h3>설치된 프로그램</h3>
                 <div className="install-list">
-                  {snap.installs.length === 0 && <div className="install-empty">No Maya or Blender installation found. Add one below.</div>}
+                  {snap.installs.length === 0 && (
+                    <div className="install-empty">설치된 Maya와 Blender를 찾지 못했습니다. 아래에서 직접 등록하세요.</div>
+                  )}
                   {snap.installs.map((i) => (
                     <div key={i.id} className="install">
                       <span className="ver">
@@ -259,13 +321,9 @@ export function SettingsModal({ info }: { info: AppInfo | null }) {
                         <bdi>{i.renderPath}</bdi>
                       </span>
                       <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span className="src">{i.source === 'auto' ? 'Detected' : 'Added manually'}</span>
+                        <span className="src">{i.source === 'auto' ? '자동 탐지' : '수동 등록'}</span>
                         {i.source === 'manual' && (
-                          <button
-                            className="btn small ghost icon"
-                            aria-label="Remove installation"
-                            onClick={() => window.rd.removeInstall(i.id)}
-                          >
+                          <button className="btn small ghost icon" aria-label="등록 해제" onClick={() => window.rd.removeInstall(i.id)}>
                             <Trash2 />
                           </button>
                         )}
@@ -276,24 +334,24 @@ export function SettingsModal({ info }: { info: AppInfo | null }) {
                 <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
                   <button className="btn small" onClick={() => window.rd.detectApps()}>
                     <RefreshCcw />
-                    Scan again
+                    다시 탐지
                   </button>
                   <button className="btn small" onClick={() => window.rd.addInstall('maya')}>
                     <Plus />
-                    {MAC ? 'Add Maya application…' : 'Add Maya Render.exe…'}
+                    {MAC ? 'Maya 앱 등록…' : 'Maya Render.exe 등록…'}
                   </button>
                   <button className="btn small" onClick={() => window.rd.addInstall('blender')}>
                     <Plus />
-                    {MAC ? 'Add Blender application…' : 'Add blender.exe…'}
+                    {MAC ? 'Blender 앱 등록…' : 'blender.exe 등록…'}
                   </button>
                 </div>
                 <div style={{ marginTop: 16 }}>
-                  <Field label="Maya .mb inspection">
+                  <Field label="Maya .mb 파일 분석">
                     <Toggle
                       on={app.deepProbe}
                       onChange={(v) => up({ deepProbe: v })}
-                      label="Inspect with Maya when adding scenes"
-                      hint="Camera and frame settings in .mb files require Maya to open the scene. This can take several seconds per scene."
+                      label="등록 시 Maya로 정밀 분석"
+                      hint=".mb 파일의 카메라와 프레임 범위는 Maya로 열어야 확인됩니다. 씬당 수십 초가 소요될 수 있습니다."
                     />
                   </Field>
                 </div>
@@ -301,15 +359,15 @@ export function SettingsModal({ info }: { info: AppInfo | null }) {
             )}
             {pane === 'lock' && (
               <div className="section">
-                <h3>Settings locked</h3>
+                <h3>설정 잠금</h3>
                 <p className="hint" style={{ marginTop: -4, marginBottom: 14 }}>
-                  Lock output and advanced settings on shared workstations. Users can still add scenes, choose frame ranges and cameras,
-                  start or stop rendering, and toggle the completion action.
+                  실습실 PC의 저장 폴더, 파일 형식, 고급 설정을 고정합니다. 잠금 상태에서는 씬 추가, 프레임 범위, 카메라, 렌더 시작과 중지,
+                  끝나면 PC 끄기만 변경할 수 있습니다.
                 </p>
                 {snap.lock.enabled ? (
                   <>
-                    <Field label="Status">
-                      <span style={{ paddingTop: 6 }}>A PIN is configured. Lock settings to restrict changes.</span>
+                    <Field label="상태">
+                      <span style={{ paddingTop: 6 }}>PIN이 설정되어 있습니다. 잠그면 학생용 화면으로 전환됩니다.</span>
                     </Field>
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button
@@ -318,27 +376,27 @@ export function SettingsModal({ info }: { info: AppInfo | null }) {
                           relockOnClose = false
                           await window.rd.lockNow()
                           setOpen(false)
-                          toast('Settings locked.')
+                          toast('설정을 잠갔습니다.')
                         }}
                       >
                         <Lock />
-                        Lock now
+                        지금 잠금
                       </button>
                       <button
                         className="btn"
                         onClick={async () => {
                           await window.rd.setPin(null)
-                          toast('Settings unlocked and PIN removed.')
+                          toast('설정 잠금을 해제하고 PIN을 삭제했습니다.')
                         }}
                       >
-                        Remove PIN
+                        PIN 삭제
                       </button>
                     </div>
                   </>
                 ) : (
                   <Field
-                    label="Set PIN"
-                    hint="Use at least four digits. To reset a forgotten PIN, close the app and remove lockPinHash from state.json in the data folder."
+                    label="PIN 설정"
+                    hint="숫자 4자리 이상. 분실 시 앱 데이터 폴더의 state.json에서 lockPinHash 항목을 삭제하면 초기화됩니다."
                   >
                     <div className="field-row">
                       <input
@@ -349,7 +407,7 @@ export function SettingsModal({ info }: { info: AppInfo | null }) {
                         value={pin1}
                         onChange={(e) => setPin1(e.target.value.replace(/\D/g, ''))}
                         placeholder="PIN"
-                        aria-label="New PIN"
+                        aria-label="새 PIN"
                       />
                       <button
                         className="btn"
@@ -357,10 +415,10 @@ export function SettingsModal({ info }: { info: AppInfo | null }) {
                         onClick={async () => {
                           await window.rd.setPin(pin1)
                           setPin1('')
-                          toast('PIN configured. Select Lock now to apply it.')
+                          toast('PIN을 설정했습니다. 지금 잠금을 누르면 적용됩니다.')
                         }}
                       >
-                        Set PIN
+                        PIN 설정
                       </button>
                     </div>
                   </Field>
@@ -369,10 +427,10 @@ export function SettingsModal({ info }: { info: AppInfo | null }) {
             )}
             {pane === 'etc' && (
               <div className="section">
-                <h3>Advanced</h3>
+                <h3>고급</h3>
                 <Field
                   label="ffmpeg"
-                  hint="Used for EXR/TIFF thumbnails and MP4 previews, not for rendering. Leave blank to detect automatically."
+                  hint="EXR, TIFF 미리보기와 MP4 프리뷰 영상에만 사용하며 렌더에는 필요하지 않습니다. 비워 두면 자동으로 찾습니다."
                 >
                   <div className="field-row">
                     <div
@@ -383,22 +441,22 @@ export function SettingsModal({ info }: { info: AppInfo | null }) {
                       }}
                     >
                       <span>
-                        <bdi>{app.ffmpegPath || 'Automatic (PATH)'}</bdi>
+                        <bdi>{app.ffmpegPath || '자동 (PATH)'}</bdi>
                       </span>
                     </div>
                     {app.ffmpegPath && (
                       <button className="btn small ghost" onClick={() => up({ ffmpegPath: '' })}>
-                        Automatic
+                        자동
                       </button>
                     )}
                   </div>
                 </Field>
-                <Field label="Log encoding" hint="Change this if renderer logs contain unreadable characters.">
+                <Field label="로그 인코딩" hint="Maya 로그의 한글이 깨질 때 변경합니다.">
                   <Select
                     value={app.logEncoding}
                     options={[
-                      { value: 'auto', label: 'Automatic' },
-                      { value: 'cp949', label: 'CP949 (Korean Windows)' },
+                      { value: 'auto', label: '자동' },
+                      { value: 'cp949', label: 'CP949 (한국어 Windows)' },
                       { value: 'utf8', label: 'UTF-8' }
                     ]}
                     onChange={(v) => up({ logEncoding: v })}
@@ -408,7 +466,7 @@ export function SettingsModal({ info }: { info: AppInfo | null }) {
                   <div className="hint" style={{ marginTop: 6 }}>
                     Render Farm {info.version}, Electron {info.electron}
                     <br />
-                    Data folder {info.dataDir}
+                    데이터 폴더 {info.dataDir}
                   </div>
                 )}
               </div>
@@ -417,73 +475,7 @@ export function SettingsModal({ info }: { info: AppInfo | null }) {
         </div>
         <div className="modal-foot">
           <button className="btn primary" onClick={close}>
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-export function PinDialog() {
-  const open = useUi((s) => s.pinPrompt)
-  const setOpen = useUi((s) => s.openPin)
-  const openSettings = useUi((s) => s.openSettings)
-  const [pin, setPin] = useState('')
-  const [err, setErr] = useState(false)
-  useEffect(() => {
-    if (!open) return
-    setPin('')
-    setErr(false)
-    const key = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
-    window.addEventListener('keydown', key)
-    return () => window.removeEventListener('keydown', key)
-  }, [open, setOpen])
-  if (!open) return null
-  const submit = async () => {
-    const ok = await window.rd.unlock(pin)
-    if (ok) {
-      relockOnClose = true
-      setOpen(false)
-      openSettings(true)
-    } else {
-      setErr(true)
-      setPin('')
-    }
-  }
-  return (
-    <div className="modal-back" onMouseDown={(e) => e.target === e.currentTarget && setOpen(false)}>
-      <div className="modal narrow" role="dialog" aria-labelledby="pin-title">
-        <div className="modal-head">
-          <h2 id="pin-title">Settings locked</h2>
-        </div>
-        <div className="modal-body">
-          <p className="hint" style={{ marginTop: 0 }}>
-            Enter the administrator PIN to change preferences.
-          </p>
-          <input
-            className="input pin-input"
-            type="password"
-            inputMode="numeric"
-            autoFocus
-            maxLength={12}
-            value={pin}
-            onChange={(e) => setPin(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && submit()}
-            aria-label="PIN"
-          />
-          {err && (
-            <div className="hint" style={{ color: 'var(--red)', marginTop: 6 }}>
-              Incorrect PIN.
-            </div>
-          )}
-        </div>
-        <div className="modal-foot">
-          <button className="btn" onClick={() => setOpen(false)}>
-            Cancel
-          </button>
-          <button className="btn primary" disabled={!pin} onClick={submit}>
-            Unlock
+            닫기
           </button>
         </div>
       </div>

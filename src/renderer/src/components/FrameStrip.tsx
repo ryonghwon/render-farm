@@ -114,7 +114,7 @@ export function FrameStrip({ job }: { job: Job }) {
     return () => ro.disconnect()
   }, [])
 
-  const label = job.frames.length ? `${job.doneFrames.length} of ${job.frames.length} frames complete` : 'Frame range not available'
+  const label = job.frames.length ? `프레임 ${job.frames.length}개 중 ${job.doneFrames.length}개 완료` : '프레임 범위 확인 전'
   return <canvas ref={ref} className="strip" role="img" aria-label={label} />
 }
 
