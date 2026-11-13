@@ -10,7 +10,10 @@ function rewritePaths(map) {
       while (i >= 0) {
         let j = i + from.length
         while (j < t.length && !/[\s,)]/.test(t[j])) j++
-        const rest = t.slice(i + from.length, j).split('/').join('\\')
+        const rest = t
+          .slice(i + from.length, j)
+          .split('/')
+          .join('\\')
         t = t.slice(0, i) + to + rest + t.slice(j)
         i = t.indexOf(from, i + to.length + rest.length)
       }
@@ -61,7 +64,8 @@ export default async function run({ engine, win, app }) {
       await sleep(100)
     }
   }
-  const clickText = (sel, text) => js(`[...document.querySelectorAll(${JSON.stringify(sel)})].find(b => b.textContent.includes(${JSON.stringify(text)}))?.click()`)
+  const clickText = (sel, text) =>
+    js(`[...document.querySelectorAll(${JSON.stringify(sel)})].find(b => b.textContent.includes(${JSON.stringify(text)}))?.click()`)
   const clickRow = (i) => js(`document.querySelectorAll('.rows .row')[${i}]?.dispatchEvent(new MouseEvent('click', { bubbles: true }))`)
   const esc = () => js(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))`)
   try {
@@ -73,7 +77,15 @@ export default async function run({ engine, win, app }) {
     await shot('01-empty')
 
     engine.updateGlobal({ outputRoot: m.out, format: 'png' })
-    engine.updateApp({ concurrency: 2, completionKind: 'shutdown', completionAction: 'none', countdownSeconds: 30, maxRetries: 2, logOpen: false, logHeight: 210 })
+    engine.updateApp({
+      concurrency: 2,
+      completionKind: 'shutdown',
+      completionAction: 'none',
+      countdownSeconds: 30,
+      maxRetries: 2,
+      logOpen: false,
+      logHeight: 210
+    })
     engine.addPaths([m.scenes])
     await waitFor(() => engine.jobs.length === 8 && engine.jobs.every((j) => j.info.state === 'done'))
     engine.updateJobs([engine.jobs.find((j) => j.sceneName === 'SQ02_SH030').id], { enabled: false })
@@ -82,10 +94,10 @@ export default async function run({ engine, win, app }) {
     await js(`document.querySelector('.header .btn.primary').click()`)
     await sleep(600)
     await shot('03-preflight')
-    await clickText('.modal .issue-item .link', '타임라인 범위 사용')
+    await clickText('.modal .issue-item .link', 'Use timeline range')
     await sleep(500)
     await shot('04-preflight-fixed')
-    await clickText('.modal .btn.primary', '시작')
+    await clickText('.modal .btn.primary', 'Start render')
     await js(`document.querySelector('.cbox').click()`)
     await sleep(7000)
     await shot('05-rendering')
@@ -100,15 +112,15 @@ export default async function run({ engine, win, app }) {
     await esc()
 
     await clickRow(2)
-    await clickText('.queue-head .btn', '로그')
+    await clickText('.queue-head .btn', 'Log')
     await sleep(600)
     await shot('08-log')
-    await clickText('.queue-head .btn', '로그')
+    await clickText('.queue-head .btn', 'Log')
 
-    await js(`document.querySelector('[aria-label="환경 설정"]').click()`)
+    await js(`document.querySelector('[aria-label="Preferences"]').click()`)
     await sleep(500)
     await shot('09-settings')
-    await clickText('.settings-nav button', '끝난 뒤 작업')
+    await clickText('.settings-nav button', 'On completion')
     await sleep(300)
     await shot('10-settings-after')
     await esc()
@@ -123,11 +135,14 @@ export default async function run({ engine, win, app }) {
 
     engine.setPin('2580')
     engine.lockNow()
-    engine.resetJobs(engine.jobs.map((j) => j.id), 'full')
+    engine.resetJobs(
+      engine.jobs.map((j) => j.id),
+      'full'
+    )
     engine.updateJobs([engine.jobs.find((j) => j.sceneName === 'SQ02_SH030').id], { enabled: false })
     await sleep(600)
     await shot('13-locked-student')
-    await js(`document.querySelector('[aria-label="환경 설정"]').click()`)
+    await js(`document.querySelector('[aria-label="Preferences"]').click()`)
     await sleep(400)
     await shot('14-pin')
     await esc()
@@ -151,9 +166,9 @@ export default async function run({ engine, win, app }) {
     await sleep(400)
     await shot('18-blender-details')
     await esc()
-    await js(`document.querySelector('[aria-label="환경 설정"]').click()`)
+    await js(`document.querySelector('[aria-label="Preferences"]').click()`)
     await sleep(400)
-    await clickText('.settings-nav button', '프로그램')
+    await clickText('.settings-nav button', 'Applications')
     await sleep(300)
     await shot('19-settings-programs')
     await esc()

@@ -42,13 +42,25 @@ export function encodePreview(opts: {
   const args = ['-y', '-hide_banner', '-loglevel', 'error']
   if (opts.ext === 'exr') args.push('-apply_trc', 'iec61966_2_1')
   args.push('-framerate', String(opts.fps), '-start_number', String(opts.startFrame), '-i', pattern)
-  args.push('-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p', '-c:v', 'libx264', '-crf', '18', '-preset', 'medium', '-movflags', '+faststart', opts.out)
+  args.push(
+    '-vf',
+    'scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p',
+    '-c:v',
+    'libx264',
+    '-crf',
+    '18',
+    '-preset',
+    'medium',
+    '-movflags',
+    '+faststart',
+    opts.out
+  )
   return new Promise((resolve, reject) => {
     const child = spawn(opts.ffmpeg, args, { windowsHide: true })
     let err = ''
     child.stderr.on('data', (d: Buffer) => (err += d.toString()))
     child.on('error', reject)
-    child.on('close', (code) => (code === 0 ? resolve() : reject(new Error(err.trim() || `ffmpeg 종료 코드 ${code}`))))
+    child.on('close', (code) => (code === 0 ? resolve() : reject(new Error(err.trim() || `FFmpeg exit code: ${code}`))))
   })
 }
 

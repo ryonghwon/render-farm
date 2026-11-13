@@ -1,3 +1,4 @@
+import { PinDialog, SettingsModal } from './components/Preferences'
 import { useEffect, useRef, useState } from 'react'
 import type { AppInfo } from '@shared/types'
 import { useUi } from './store'
@@ -6,7 +7,7 @@ import { Queue } from './components/Queue'
 import { LogPanel } from './components/LogPanel'
 import { Rail } from './components/Rail'
 import { SceneDialog } from './components/SceneDialog'
-import { ContextMenu, CountdownModal, PinDialog, PreflightDialog, PresetDialog, SettingsModal, Toasts } from './components/Overlays'
+import { ContextMenu, CountdownModal, PreflightDialog, PresetDialog, Toasts } from './components/Overlays'
 import { reportAdd } from './actions'
 
 function typing(e: KeyboardEvent): boolean {

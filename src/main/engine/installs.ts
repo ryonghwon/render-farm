@@ -54,7 +54,12 @@ function blenderVersionOf(bin: string): string {
   if (cached) return cached
   let v = 'unknown'
   try {
-    const out = execFileSync(bin, ['--version'], { timeout: 15000, windowsHide: true, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+    const out = execFileSync(bin, ['--version'], {
+      timeout: 15000,
+      windowsHide: true,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore']
+    })
     const m = /Blender\s+(\d+\.\d+)/.exec(out)
     if (m) v = m[1]
   } catch {
@@ -81,7 +86,8 @@ function blenderCandidates(): string[] {
     for (const r of [...new Set(steam)]) out.push(path.join(r, 'Steam', 'steamapps', 'common', 'Blender', 'blender.exe'))
   } else if (isMac) {
     for (const root of ['/Applications', path.join(process.env.HOME ?? '', 'Applications')])
-      for (const d of listDir(root)) if (/^blender/i.test(d) && d.endsWith('.app')) out.push(path.join(root, d, 'Contents', 'MacOS', 'Blender'))
+      for (const d of listDir(root))
+        if (/^blender/i.test(d) && d.endsWith('.app')) out.push(path.join(root, d, 'Contents', 'MacOS', 'Blender'))
   } else {
     out.push('/usr/bin/blender', '/usr/local/bin/blender', '/snap/bin/blender')
     for (const d of listDir('/opt')) if (/^blender/i.test(d)) out.push(path.join('/opt', d, 'blender'))
@@ -89,7 +95,7 @@ function blenderCandidates(): string[] {
   return out
 }
 
-function manualInstall(p: string): Install | null {
+export function manualInstall(p: string): Install | null {
   let target = p
   try {
     if (/\.app\/?$/i.test(p)) {
@@ -106,7 +112,13 @@ function manualInstall(p: string): Install | null {
     return null
   }
   if (/^blender(\.exe)?$/i.test(path.basename(target))) return blenderAt(target, 'manual')
-  return mayaFromBin(path.dirname(target), 'manual', target)
+  if (/^Render(\.exe)?$/i.test(path.basename(target))) return mayaFromBin(path.dirname(target), 'manual', target)
+  return null
+}
+
+export function installPathKey(p: string, platform: NodeJS.Platform = process.platform): string {
+  const resolved = (platform === 'win32' ? path.win32 : path.posix).resolve(p)
+  return platform === 'win32' ? resolved.toLowerCase() : resolved
 }
 
 export function detectInstalls(manual: string[]): Install[] {
@@ -114,7 +126,7 @@ export function detectInstalls(manual: string[]): Install[] {
   const seen = new Set<string>()
   const push = (i: Install | null) => {
     if (!i) return
-    const key = path.resolve(i.renderPath).toLowerCase()
+    const key = installPathKey(i.renderPath)
     if (seen.has(key)) return
     seen.add(key)
     found.push(i)
@@ -142,7 +154,9 @@ export function detectInstalls(manual: string[]): Install[] {
   }
   for (const c of blenderCandidates()) push(blenderAt(c, 'auto'))
   for (const m of manual) push(manualInstall(m))
-  return found.sort((a, b) => (a.app === b.app ? b.version.localeCompare(a.version, undefined, { numeric: true }) : a.app.localeCompare(b.app)))
+  return found.sort((a, b) =>
+    a.app === b.app ? b.version.localeCompare(a.version, undefined, { numeric: true }) : a.app.localeCompare(b.app)
+  )
 }
 
 export interface InstallChoice {

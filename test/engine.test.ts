@@ -1,3 +1,5 @@
+import { manualInstall } from '../src/main/engine/installs'
+import type { Install } from '../src/shared/types'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -44,7 +46,13 @@ async function setup(label: string, scenes: [string, Parameters<typeof writeScen
   const root = tmp(label)
   const p = makeProject(root)
   for (const [name, o] of scenes) writeScene(p.scenes, name, o)
-  const engine = new Engine({ dataDir: path.join(root, 'data'), dryRunPower: true, cores: 8, retryDelays: { license: 300, crash: 100, missing: 50 } })
+  const engine = new Engine({
+    discoverInstalls: (paths) => paths.map(manualInstall).filter((install): install is Install => install !== null),
+    dataDir: path.join(root, 'data'),
+    dryRunPower: true,
+    cores: 8,
+    retryDelays: { license: 300, crash: 100, missing: 50 }
+  })
   await engine.init()
   engine.addInstall(MOCK)
   engine.updateApp({ maxRetries: 2, ...app })
@@ -61,17 +69,32 @@ function putBlend(dir: string, name: string, fixture = 'basic', mock = 'speed=40
   return p
 }
 
-async function setupBlend(label: string, scenes: [string, string?, string?][], installs: string[] = [MOCK_BLENDER], app: Partial<Engine['app']> = {}) {
+async function setupBlend(
+  label: string,
+  scenes: [string, string?, string?][],
+  installs: string[] = [MOCK_BLENDER],
+  app: Partial<Engine['app']> = {}
+) {
   const root = tmp(label)
   const p = makeProject(root)
   for (const [name, fixture, mock] of scenes) putBlend(p.scenes, name, fixture, mock)
-  const engine = new Engine({ dataDir: path.join(root, 'data'), dryRunPower: true, cores: 8, retryDelays: { license: 300, crash: 100, missing: 50 } })
+  const engine = new Engine({
+    discoverInstalls: (paths) => paths.map(manualInstall).filter((install): install is Install => install !== null),
+    dataDir: path.join(root, 'data'),
+    dryRunPower: true,
+    cores: 8,
+    retryDelays: { license: 300, crash: 100, missing: 50 }
+  })
   await engine.init()
   for (const i of installs) engine.addInstall(i)
   engine.updateApp({ maxRetries: 2, ...app })
   engine.updateGlobal({ outputRoot: p.out, format: 'png' })
   engine.addPaths([p.scenes])
-  await waitFor(() => engine.jobs.length > 0 && engine.jobs.every((j) => j.info.state === 'done' || j.info.state === 'error'), 15000, 'probe')
+  await waitFor(
+    () => engine.jobs.length > 0 && engine.jobs.every((j) => j.info.state === 'done' || j.info.state === 'error'),
+    15000,
+    'probe'
+  )
   return { engine, ...p, root }
 }
 
@@ -81,11 +104,14 @@ async function runToEnd(engine: Engine, timeout = 60000) {
 }
 
 function logText(engine: Engine, jobId: string | null): string {
-  return engine.getLog(jobId).map((l) => l.text).join('\n')
+  return engine
+    .getLog(jobId)
+    .map((l) => l.text)
+    .join('\n')
 }
 
 async function main() {
-  console.log('RenderFarm engine tests')
+  console.log('Render Farm engine tests')
 
   await test('utility: frame ranges and names', async () => {
     assert.deepEqual(toRanges([1, 2, 3, 5, 6, 9], 1, 0), [
@@ -93,8 +119,21 @@ async function main() {
       { start: 5, end: 6, step: 1 },
       { start: 9, end: 9, step: 1 }
     ])
-    assert.deepEqual(toRanges([1, 2, 3, 4, 5, 6, 7], 1, 3).map((r) => [r.start, r.end]), [[1, 3], [4, 6], [7, 7]])
-    assert.deepEqual(toRanges([1, 3, 5, 9], 2, 0).map((r) => [r.start, r.end]), [[1, 5], [9, 9]])
+    assert.deepEqual(
+      toRanges([1, 2, 3, 4, 5, 6, 7], 1, 3).map((r) => [r.start, r.end]),
+      [
+        [1, 3],
+        [4, 6],
+        [7, 7]
+      ]
+    )
+    assert.deepEqual(
+      toRanges([1, 3, 5, 9], 2, 0).map((r) => [r.start, r.end]),
+      [
+        [1, 5],
+        [9, 9]
+      ]
+    )
     assert.equal(compactFrames([4, 5, 6, 9, 11, 12]), '4-6, 9, 11-12')
     assert.deepEqual(parseFrameName('S01_C010.0012.exr'), { stem: 'S01_C010', sep: '.', frame: 12, ext: 'exr', digits: 4 })
     assert.deepEqual(parseFrameName('beauty_0101.png'), { stem: 'beauty', sep: '_', frame: 101, ext: 'png', digits: 4 })
@@ -104,7 +143,15 @@ async function main() {
   await test('probe: Maya ASCII scene analysis', async () => {
     const root = tmp('probe')
     const p = makeProject(root)
-    const scene = writeScene(p.scenes, 'S01_C010', { start: 1001, end: 1048, timelineStart: 1001, timelineEnd: 1060, camera: 'shotCam', refs: ['assets/char_rig.mb', 'assets/missing_prop.mb'], layers: ['rs_charLayer'] })
+    const scene = writeScene(p.scenes, 'S01_C010', {
+      start: 1001,
+      end: 1048,
+      timelineStart: 1001,
+      timelineEnd: 1060,
+      camera: 'shotCam',
+      refs: ['assets/char_rig.mb', 'assets/missing_prop.mb'],
+      layers: ['rs_charLayer']
+    })
     const info = await probeAscii(scene)
     assert.equal(info.version, '2025')
     assert.equal(info.renderer, 'arnold')
@@ -114,9 +161,15 @@ async function main() {
     assert.equal(info.width, 1920)
     assert.equal(info.fps, 24)
     assert.equal(info.imageFormat, 'exr')
-    assert.deepEqual(info.cameras.filter((c) => c.renderable).map((c) => c.name), ['shotCam'])
+    assert.deepEqual(
+      info.cameras.filter((c) => c.renderable).map((c) => c.name),
+      ['shotCam']
+    )
     assert.ok(info.cameras.find((c) => c.name === 'persp' && !c.renderable))
-    assert.deepEqual(info.layers.map((l) => l.name), ['defaultRenderLayer', 'rs_charLayer'])
+    assert.deepEqual(
+      info.layers.map((l) => l.name),
+      ['defaultRenderLayer', 'rs_charLayer']
+    )
     assert.ok(info.plugins.includes('mtoa'))
     assert.equal(info.references.length, 2)
   })
@@ -124,7 +177,10 @@ async function main() {
   await test('renderable default camera is flagged with a one-click fix', async () => {
     const { engine } = await setup('defcam', [['PERSP', { start: 1, end: 4, perspRenderable: true, mock: 'speed=10' }]])
     const job = engine.jobs[0]
-    assert.deepEqual(job.info.cameras.filter((c) => c.renderable).map((c) => c.name), ['persp', 'shotCam'])
+    assert.deepEqual(
+      job.info.cameras.filter((c) => c.renderable).map((c) => c.name),
+      ['persp', 'shotCam']
+    )
     assert.ok(job.info.cameras.find((c) => c.name === 'top' && !c.renderable))
     const issue = job.issues.find((i) => i.code === 'default-camera')
     assert.equal(issue?.fix?.patch?.camera, 'shotCam')
@@ -139,28 +195,38 @@ async function main() {
       ['S02_C010', { start: 10, end: 14, mock: 'speed=40' }]
     ])
     assert.equal(engine.jobs.length, 3)
-    assert.ok(engine.jobs.every((j) => j.issues.every((i) => i.level !== 'error')), JSON.stringify(engine.jobs.map((j) => j.issues)))
+    assert.ok(
+      engine.jobs.every((j) => j.issues.every((i) => i.level !== 'error')),
+      JSON.stringify(engine.jobs.map((j) => j.issues))
+    )
     let maxParallel = 0
     const iv = setInterval(() => (maxParallel = Math.max(maxParallel, engine.stats().runningTasks)), 20)
     await runToEnd(engine)
     clearInterval(iv)
     assert.equal(maxParallel, 1)
-    assert.deepEqual(engine.jobs.map((j) => j.status), ['done', 'done', 'done'])
+    assert.deepEqual(
+      engine.jobs.map((j) => j.status),
+      ['done', 'done', 'done']
+    )
     assert.equal(fs.readdirSync(path.join(out, 'S01_C010')).filter((f) => f.endsWith('.png')).length, 6)
     assert.ok(fs.existsSync(path.join(out, 'S02_C010', 'S02_C010.0014.png')))
     const log = logText(engine, engine.jobs[0].id)
     assert.match(log, /-proj/)
     assert.match(log, /-preRender rqBoot/)
-    assert.match(log, /Maya 렌더 세션 시작 확인/)
+    assert.match(log, /Maya render session started/)
     assert.equal(engine.stats().progress, 1)
   })
 
   await test('parallel mode runs two renders at once and splits threads', async () => {
-    const { engine } = await setup('par', [
-      ['A', { end: 6, mock: 'speed=60' }],
-      ['B', { end: 6, mock: 'speed=60' }],
-      ['C', { end: 6, mock: 'speed=60' }]
-    ], { concurrency: 2 })
+    const { engine } = await setup(
+      'par',
+      [
+        ['A', { end: 6, mock: 'speed=60' }],
+        ['B', { end: 6, mock: 'speed=60' }],
+        ['C', { end: 6, mock: 'speed=60' }]
+      ],
+      { concurrency: 2 }
+    )
     let maxParallel = 0
     const iv = setInterval(() => (maxParallel = Math.max(maxParallel, engine.stats().runningTasks)), 20)
     await runToEnd(engine)
@@ -192,11 +258,18 @@ async function main() {
     assert.equal(job.tasks.length, 2)
     assert.equal(job.tasks[0].status, 'failed')
     assert.deepEqual([job.tasks[1].start, job.tasks[1].end, job.tasks[1].attempt], [5, 8, 1])
-    assert.match(logText(engine, job.id), /빠진 프레임 재시도 예약/)
+    assert.match(logText(engine, job.id), /Queued missing frames for retry/)
   })
 
   await test('persistent failure ends as partial with the missing frame list', async () => {
-    const { engine } = await setup('partial', [['BROKEN', { end: 6, mock: 'speed=20 fail=4' }], ['OK', { end: 3, mock: 'speed=20' }]], { maxRetries: 1 })
+    const { engine } = await setup(
+      'partial',
+      [
+        ['BROKEN', { end: 6, mock: 'speed=20 fail=4' }],
+        ['OK', { end: 3, mock: 'speed=20' }]
+      ],
+      { maxRetries: 1 }
+    )
     await runToEnd(engine)
     const [broken, ok] = engine.jobs
     assert.equal(broken.status, 'partial')
@@ -214,9 +287,9 @@ async function main() {
     assert.equal(job.status, 'partial')
     assert.deepEqual(job.doneFrames, [1, 2, 3, 4])
     assert.deepEqual(job.missingFrames, [5, 6, 7, 8])
-    assert.match(job.error ?? '', /라이선스/)
+    assert.match(job.error ?? '', /license/)
     const log = logText(engine, job.id)
-    assert.match(log, /다시 렌더 예약 \(라이선스 대기 1\/3\)/)
+    assert.match(log, /for retry \(license wait 1\/3\)/)
     const failed = job.tasks.filter((t) => t.status === 'failed')
     assert.equal(failed.length, 4)
     assert.ok(failed[1].startedAt! - failed[0].finishedAt! >= 250)
@@ -224,7 +297,14 @@ async function main() {
   })
 
   await test('license held by the previous render is waited out without showing errors', async () => {
-    const { engine } = await setup('licgap', [['GA', { start: 1, end: 3, mock: 'speed=10 licgap=350' }], ['GB', { start: 4, end: 6, mock: 'speed=10 licgap=350' }]], { maxRetries: 0 })
+    const { engine } = await setup(
+      'licgap',
+      [
+        ['GA', { start: 1, end: 3, mock: 'speed=10 licgap=350' }],
+        ['GB', { start: 4, end: 6, mock: 'speed=10 licgap=350' }]
+      ],
+      { maxRetries: 0 }
+    )
     await runToEnd(engine)
     const [a, b] = engine.jobs
     assert.equal(a.status, 'done')
@@ -233,7 +313,7 @@ async function main() {
     const lines = [...engine.getLog(a.id), ...engine.getLog(b.id), ...engine.getLog(null)]
     assert.equal(lines.filter((l) => !l.raw && l.level === 'error').length, 0)
     assert.ok(lines.some((l) => l.raw && /abort_on_license_fail/.test(l.text)))
-    assert.match(logText(engine, null), /렌더 사이 간격 0초 적용|렌더 사이 간격/)
+    assert.match(logText(engine, null), /between renders for Arnold license release/)
   })
 
   await test('time estimate separates scene loading from frame time and survives a rerun', async () => {
@@ -262,7 +342,10 @@ async function main() {
     assert.equal(shot.info.version, '5.2')
     assert.equal(shot.info.renderer, 'cycles')
     assert.deepEqual([shot.info.start, shot.info.end, shot.info.width, shot.info.height], [1, 6, 960, 540])
-    assert.deepEqual(shot.info.cameras, [{ name: 'CamA', renderable: true }, { name: 'CamB', renderable: false }])
+    assert.deepEqual(shot.info.cameras, [
+      { name: 'CamA', renderable: true },
+      { name: 'CamB', renderable: false }
+    ])
     assert.deepEqual(shot.frames, [1, 2, 3, 4, 5, 6])
     assert.ok(shot.issues.some((i) => i.code === 'missing-textures' && /wood\.png/.test(i.message)))
     assert.ok(!shot.issues.some((i) => i.code === 'no-app' || i.code === 'non-ascii' || i.code === 'range-diff'))
@@ -279,9 +362,9 @@ async function main() {
     assert.deepEqual(job.doneFrames, [1, 2, 3, 4, 5, 6])
     for (let f = 1; f <= 6; f++) assert.ok(fs.existsSync(path.join(out, 'B_RUN', `B_RUN.${String(f).padStart(4, '0')}.png`)))
     const log = logText(engine, job.id)
-    assert.match(log, /Blender 렌더 세션 시작 확인/)
-    assert.match(log, /렌더 장치: CPU/)
-    assert.match(log, /명령: .*-b .*B_RUN\.blend --python .*rf_boot\.py -s 1 -e 6 -j 1 -a/)
+    assert.match(log, /Blender render session started/)
+    assert.match(log, /Render device: CPU/)
+    assert.match(log, /Command: .*-b .*B_RUN\.blend --python .*rf_boot\.py -s 1 -e 6 -j 1 -a/)
     assert.ok(job.avgFrameMs! > 0 && job.versionUsed === '5.2')
   })
 
@@ -291,7 +374,7 @@ async function main() {
     await runToEnd(engine)
     assert.equal(job.status, 'done')
     const failed = job.tasks.find((t) => t.status === 'failed')!
-    assert.match(failed.error ?? '', /^종료 코드 1$/)
+    assert.match(failed.error ?? '', /^Exit code: 1$/)
     const retry = job.tasks.find((t) => t.attempt === 1)!
     assert.deepEqual([retry.start, retry.end], [4, 6])
   })
@@ -319,7 +402,10 @@ async function main() {
     await waitFor(() => engine.jobs.find((j) => j.sceneName === 'B_BROKEN')?.info.state === 'done', 10000, 'deep probe')
     const b = engine.jobs.find((j) => j.sceneName === 'B_BROKEN')!
     assert.equal(b.info.method, 'blender')
-    assert.deepEqual(b.info.cameras.map((c) => c.name), ['ProbeCam'])
+    assert.deepEqual(
+      b.info.cameras.map((c) => c.name),
+      ['ProbeCam']
+    )
   })
 
   await test('AOV folders are judged by the beauty pass', async () => {
@@ -332,8 +418,8 @@ async function main() {
   })
 
   await test('Windows crash codes are described in plain words', async () => {
-    assert.equal(describeExit(3221226356, null), 'Render.exe 비정상 종료 (0xC0000374, 힙 손상)')
-    assert.equal(describeExit(1, null), '종료 코드 1')
+    assert.equal(describeExit(3221226356, null), 'Render.exe exited unexpectedly (0xC0000374, Heap corruption)')
+    assert.equal(describeExit(1, null), 'Exit code: 1')
   })
 
   await test('frame written without markers is still detected and verified', async () => {
@@ -355,7 +441,7 @@ async function main() {
     const { engine } = await setup('elsewhere', [['ELSE', { end: 3, mock: 'speed=20 wrongdir=1' }]], { maxRetries: 0 })
     await runToEnd(engine)
     assert.equal(engine.jobs[0].status, 'done')
-    assert.match(logText(engine, engine.jobs[0].id), /저장 경로 확인 필요/)
+    assert.match(logText(engine, engine.jobs[0].id), /Check the output path/)
   })
 
   await test('stop then start resumes from unfinished frames', async () => {
@@ -381,7 +467,12 @@ async function main() {
     await waitFor(() => engine.jobs[0].doneFrames.length >= 3, 20000, 'frames')
     await engine.shutdown()
     await waitFor(() => engine.stats().runningTasks === 0, 10000, 'killed')
-    const again = new Engine({ dataDir: path.join(root, 'data'), dryRunPower: true, cores: 8 })
+    const again = new Engine({
+      discoverInstalls: (paths) => paths.map(manualInstall).filter((install): install is Install => install !== null),
+      dataDir: path.join(root, 'data'),
+      dryRunPower: true,
+      cores: 8
+    })
     await again.init()
     const job = again.jobs[0]
     assert.equal(job.status, 'stopped')
@@ -399,13 +490,31 @@ async function main() {
     await runToEnd(engine)
     const job = engine.jobs[0]
     assert.equal(job.status, 'done')
-    assert.deepEqual(job.tasks.map((t) => [t.start, t.end]), [[4, 5], [7, 8]])
+    assert.deepEqual(
+      job.tasks.map((t) => [t.start, t.end]),
+      [
+        [4, 5],
+        [7, 8]
+      ]
+    )
   })
 
   await test('per-scene overrides change frames, camera and resolution', async () => {
     const { engine, out } = await setup('override', [['OVR', { start: 1, end: 30, mock: 'speed=10' }]])
     const job = engine.jobs[0]
-    engine.updateJobs([job.id], { overrides: { frameMode: 'custom', start: 5, end: 9, step: 2, camera: 'shotCam', resolutionMode: 'custom', width: 1280, height: 720, filePrefix: '{scene}_{camera}' } })
+    engine.updateJobs([job.id], {
+      overrides: {
+        frameMode: 'custom',
+        start: 5,
+        end: 9,
+        step: 2,
+        camera: 'shotCam',
+        resolutionMode: 'custom',
+        width: 1280,
+        height: 720,
+        filePrefix: '{scene}_{camera}'
+      }
+    })
     await runToEnd(engine)
     assert.equal(job.status, 'done')
     assert.deepEqual(job.frames, [5, 7, 9])
@@ -419,10 +528,14 @@ async function main() {
   await test('preflight flags collisions, range mismatch, missing refs and non-ASCII paths', async () => {
     const root = tmp('preflight')
     const p = makeProject(root)
-    const korean = path.join(p.scenes, '컷')
-    fs.mkdirSync(korean)
-    writeScene(korean, 'K01', { start: 1, end: 10, timelineEnd: 96, refs: ['assets/gone.mb'] })
-    const engine = new Engine({ dataDir: path.join(root, 'data'), dryRunPower: true })
+    const unicodeDir = path.join(p.scenes, 'café')
+    fs.mkdirSync(unicodeDir)
+    writeScene(unicodeDir, 'K01', { start: 1, end: 10, timelineEnd: 96, refs: ['assets/gone.mb'] })
+    const engine = new Engine({
+      discoverInstalls: (paths) => paths.map(manualInstall).filter((install): install is Install => install !== null),
+      dataDir: path.join(root, 'data'),
+      dryRunPower: true
+    })
     await engine.init()
     engine.addPaths([p.scenes])
     await waitFor(() => engine.jobs.every((j) => j.info.state === 'done'))
@@ -431,7 +544,7 @@ async function main() {
     assert.ok(codes.includes('range-diff'))
     assert.ok(codes.includes('missing-refs'))
     assert.ok(codes.includes('non-ascii'))
-    assert.match(engine.jobs[0].issues.find((i) => i.code === 'non-ascii')!.message, /씬 파일 경로.*컷/)
+    assert.match(engine.jobs[0].issues.find((i) => i.code === 'non-ascii')!.message, /scene path.*café/)
     engine.updateGlobal({ outputRoot: p.out })
     engine.duplicateJobs([engine.jobs[0].id])
     codes = engine.jobs[1].issues.map((i) => i.code)
@@ -455,16 +568,26 @@ async function main() {
   })
 
   await test('completion action counts down and fires after the queue', async () => {
-    const { engine } = await setup('shutdown', [['LAST', { end: 2, mock: 'speed=20' }]], { completionAction: 'shutdown', countdownSeconds: 5 })
+    const { engine } = await setup('shutdown', [['LAST', { end: 2, mock: 'speed=20' }]], {
+      completionAction: 'shutdown',
+      countdownSeconds: 5
+    })
     await runToEnd(engine)
     assert.equal(engine.completion.pendingAction, 'shutdown')
     assert.ok((engine.completion.countdown ?? 0) > 0)
     await waitFor(() => engine.completion.pendingAction === null, 8000, 'countdown')
-    assert.match(logText(engine, null), /\[테스트 모드\] (shutdown|systemctl poweroff)/)
+    assert.match(logText(engine, null), /\[Dry run\] (shutdown|systemctl poweroff|osascript)/)
   })
 
   await test('cancelled countdown never fires and stop never triggers shutdown', async () => {
-    const { engine } = await setup('cancel', [['X', { end: 2, mock: 'speed=20' }], ['Y', { end: 40, mock: 'speed=80' }]], { completionAction: 'shutdown', countdownSeconds: 5 })
+    const { engine } = await setup(
+      'cancel',
+      [
+        ['X', { end: 2, mock: 'speed=20' }],
+        ['Y', { end: 40, mock: 'speed=80' }]
+      ],
+      { completionAction: 'shutdown', countdownSeconds: 5 }
+    )
     engine.start()
     await waitFor(() => engine.jobs[0].status === 'done', 10000)
     engine.stop()
@@ -476,11 +599,14 @@ async function main() {
     assert.equal(engine.completion.pendingAction, 'shutdown')
     engine.cancelCountdown()
     await new Promise((r) => setTimeout(r, 1200))
-    assert.doesNotMatch(logText(engine, null), /테스트 모드/)
+    assert.doesNotMatch(logText(engine, null), /Dry run/)
   })
 
   await test('range warning offers a one-click timeline fix and can be dismissed', async () => {
-    const { engine } = await setup('fix', [['TRAP', { start: 1, end: 10, timelineStart: 1, timelineEnd: 48, mock: 'speed=10' }], ['ANIMOFF', { start: 1, end: 10, timelineEnd: 24, animation: false, mock: 'speed=10' }]])
+    const { engine } = await setup('fix', [
+      ['TRAP', { start: 1, end: 10, timelineStart: 1, timelineEnd: 48, mock: 'speed=10' }],
+      ['ANIMOFF', { start: 1, end: 10, timelineEnd: 24, animation: false, mock: 'speed=10' }]
+    ])
     const trap = engine.jobs.find((j) => j.sceneName === 'TRAP')!
     const off = engine.jobs.find((j) => j.sceneName === 'ANIMOFF')!
     const issue = trap.issues.find((i) => i.code === 'range-diff')
@@ -520,7 +646,10 @@ async function main() {
   })
 
   await test('skip moves the queue to the next job', async () => {
-    const { engine } = await setup('skipjob', [['A_SLOW', { end: 40, mock: 'speed=100' }], ['B_NEXT', { end: 2, mock: 'speed=20' }]])
+    const { engine } = await setup('skipjob', [
+      ['A_SLOW', { end: 40, mock: 'speed=100' }],
+      ['B_NEXT', { end: 2, mock: 'speed=20' }]
+    ])
     const byName = (n: string) => engine.jobs.find((j) => j.sceneName === n)!
     engine.start()
     await waitFor(() => byName('A_SLOW').doneFrames.length >= 1, 10000)

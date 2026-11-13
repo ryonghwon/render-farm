@@ -1,8 +1,11 @@
 import { execFile } from 'node:child_process'
 import type { CompletionAction } from '../../shared/types'
 
-export function powerCommand(action: CompletionAction): { cmd: string; args: string[] } | null {
-  const p = process.platform
+export function powerCommand(
+  action: CompletionAction,
+  platform: NodeJS.Platform = process.platform
+): { cmd: string; args: string[] } | null {
+  const p = platform
   if (action === 'shutdown') {
     if (p === 'win32') return { cmd: 'shutdown', args: ['/s', '/t', '0'] }
     if (p === 'darwin') return { cmd: 'osascript', args: ['-e', 'tell app "System Events" to shut down'] }
@@ -20,7 +23,7 @@ export function runPowerAction(action: CompletionAction, dryRun: boolean): Promi
   const c = powerCommand(action)
   if (!c) return Promise.resolve('')
   const line = `${c.cmd} ${c.args.join(' ')}`
-  if (dryRun) return Promise.resolve(`[테스트 모드] ${line}`)
+  if (dryRun) return Promise.resolve(`[Dry run] ${line}`)
   return new Promise((resolve, reject) => {
     execFile(c.cmd, c.args, { windowsHide: true }, (err) => (err ? reject(err) : resolve(line)))
   })

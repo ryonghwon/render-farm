@@ -1,5 +1,5 @@
 appId: kr.ac.kaywon.renderfarm
-productName: RenderFarm
+productName: Render Farm
 directories:
   buildResources: build
   output: dist
@@ -22,9 +22,9 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   shortcutName: Render Farm
-  artifactName: ${productName}-Setup-${version}.${ext}
+  artifactName: Render-Farm-${version}-Windows-${arch}-Setup.${ext}
 portable:
-  artifactName: ${productName}-Portable-${version}.${ext}
+  artifactName: Render-Farm-${version}-Windows-${arch}-Portable.${ext}
 mac:
   target:
     - target: zip
@@ -33,9 +33,9 @@ mac:
   icon: build/icon.png
   identity: null
   hardenedRuntime: false
-  artifactName: ${productName}-${version}-mac-${arch}.${ext}
+  artifactName: Render-Farm-${version}-macOS-${arch}.${ext}
   extendInfo:
-    NSAppleEventsUsageDescription: 렌더가 모두 끝난 뒤 Mac을 자동으로 끄기 위해 필요합니다.
+    NSAppleEventsUsageDescription: Allows Render Farm to shut down this Mac after the render queue completes, when you select Shut down.
     CFBundleDisplayName: Render Farm
 linux:
   target: AppImage

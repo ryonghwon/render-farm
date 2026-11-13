@@ -30,25 +30,26 @@ export function hasNonAscii(s: string): boolean {
 }
 
 const NT_STATUS: Record<number, string> = {
-  0xc0000005: '메모리 접근 위반',
-  0xc0000017: '메모리 부족',
-  0xc00000fd: '스택 오버플로',
-  0xc000013a: '강제 종료',
-  0xc0000374: '힙 손상',
-  0xc0000409: '버퍼 오버런'
+  0xc0000005: 'Access violation',
+  0xc0000017: 'Out of memory',
+  0xc00000fd: 'Stack overflow',
+  0xc000013a: 'Process terminated',
+  0xc0000374: 'Heap corruption',
+  0xc0000409: 'Buffer overrun'
 }
 
 export function describeExit(code: number | null, signal: string | null, exe = 'Render.exe'): string {
-  if (code === null) return signal ? `${exe} 비정상 종료 (${signal})` : `${exe} 비정상 종료`
+  if (code === null) return signal ? `${exe} exited unexpectedly (${signal})` : `${exe} exited unexpectedly`
   const u = code >>> 0
   if (u >= 0xc0000000) {
     const name = NT_STATUS[u]
-    return `${exe} 비정상 종료 (0x${u.toString(16).toUpperCase()}${name ? `, ${name}` : ''})`
+    return `${exe} exited unexpectedly (0x${u.toString(16).toUpperCase()}${name ? `, ${name}` : ''})`
   }
-  return `종료 코드 ${code}`
+  return `Exit code: ${code}`
 }
 
-export const LICENSE_FAIL_RE = /abort_on_license_fail|not licensed|license (?:check(?:out)?|server)? ?(?:failed|failure|error|denied)|no (?:valid )?license (?:found|available)/i
+export const LICENSE_FAIL_RE =
+  /abort_on_license_fail|not licensed|license (?:check(?:out)?|server)? ?(?:failed|failure|error|denied)|no (?:valid )?license (?:found|available)/i
 
 export function nonAsciiPart(p: string): string | null {
   return p.split(/[\\/]/).find((seg) => hasNonAscii(seg)) ?? null

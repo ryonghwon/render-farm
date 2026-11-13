@@ -1,8 +1,8 @@
 {
-  "name": "renderfarm",
-  "productName": "RenderFarm",
-  "version": "0.1.0",
-  "description": "Maya batch render queue and render farm",
+  "name": "render-farm",
+  "productName": "Render Farm",
+  "version": "0.2.0",
+  "description": "Local batch rendering for Maya and Blender on Windows and macOS",
   "main": "./out/main/index.js",
   "author": "Kim Yongwon",
   "license": "UNLICENSED",
@@ -12,10 +12,12 @@
     "build": "electron-vite build",
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
-    "test": "tsx test/engine.test.ts",
+    "test": "node --import tsx --test test/platform.test.ts test/runner.test.ts && node --import tsx test/engine.test.ts",
     "dist:win": "electron-vite build && electron-builder --win",
     "dist:mac": "electron-vite build && electron-builder --mac",
-    "dist:dir": "electron-vite build && electron-builder --dir"
+    "dist:dir": "electron-vite build && electron-builder --dir",
+    "format": "prettier --write src test *.json *.ts *.yml",
+    "format:check": "prettier --check src test *.json *.ts *.yml"
   },
   "devDependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -36,9 +38,24 @@
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.4",
-    "zustand": "^5.0.15"
+    "zustand": "^5.0.15",
+    "prettier": "3.8.2"
   },
   "dependencies": {
     "iconv-lite": "^0.7.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ryonghwon/render-farm.git"
+  },
+  "homepage": "https://github.com/ryonghwon/render-farm",
+  "bugs": {
+    "url": "https://github.com/ryonghwon/render-farm/issues"
+  },
+  "overrides": {
+    "minimatch": "11.0.1"
+  },
+  "engines": {
+    "node": ">=24"
   }
 }

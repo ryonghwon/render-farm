@@ -7,7 +7,13 @@ import { emptySceneInfo, fpsFromUnit } from './settings'
 
 export const PARSER_VERSION = 2
 
-type NodeCtx = { kind: 'camera'; cam: CameraInfo } | { kind: 'layer'; layer: LayerInfo } | { kind: 'globals' } | { kind: 'resolution' } | { kind: 'arnoldDriver' } | { kind: 'other' }
+type NodeCtx =
+  | { kind: 'camera'; cam: CameraInfo }
+  | { kind: 'layer'; layer: LayerInfo }
+  | { kind: 'globals' }
+  | { kind: 'resolution' }
+  | { kind: 'arnoldDriver' }
+  | { kind: 'other' }
 
 function lastQuoted(line: string): string | null {
   const all = [...line.matchAll(/"((?:[^"\\]|\\.)*)"/g)]
@@ -155,7 +161,12 @@ export async function probeAscii(scenePath: string): Promise<SceneInfo> {
       }
       continue
     }
-    if (t.startsWith('connectAttr') || t.startsWith('relationship') || t.startsWith('lockNode') || (t.startsWith('rename ') && !/^rename\s+-uid\b/.test(t))) {
+    if (
+      t.startsWith('connectAttr') ||
+      t.startsWith('relationship') ||
+      t.startsWith('lockNode') ||
+      (t.startsWith('rename ') && !/^rename\s+-uid\b/.test(t))
+    ) {
       ctx = { kind: 'other' }
     }
   }
@@ -180,7 +191,10 @@ export function resolveRefs(refs: string[], scenePath: string, project?: string 
   const sceneDir = path.dirname(scenePath)
   return refs.map((r) => {
     const clean = r.replace(/\{\d+\}$/, '')
-    const candidates = path.isAbsolute(clean) || /^[a-zA-Z]:[\\/]/.test(clean) ? [clean] : [path.join(project ?? sceneDir, clean), path.join(sceneDir, clean)]
+    const candidates =
+      path.isAbsolute(clean) || /^[a-zA-Z]:[\\/]/.test(clean)
+        ? [clean]
+        : [path.join(project ?? sceneDir, clean), path.join(sceneDir, clean)]
     const hit = candidates.find((c) => {
       try {
         return fs.existsSync(c)
@@ -226,11 +240,14 @@ export interface DeepProbeOptions {
 
 export function probeDeep(scenePath: string, opts: DeepProbeOptions): Promise<Partial<SceneInfo> & { refsRaw?: string[] }> {
   return new Promise((resolve, reject) => {
-    const child = spawn(opts.mayapy, [opts.scriptPath, scenePath], { windowsHide: true, env: { ...process.env, MAYA_DISABLE_CIP: '1', MAYA_DISABLE_CER: '1' } })
+    const child = spawn(opts.mayapy, [opts.scriptPath, scenePath], {
+      windowsHide: true,
+      env: { ...process.env, MAYA_DISABLE_CIP: '1', MAYA_DISABLE_CER: '1' }
+    })
     let out = ''
     const timer = setTimeout(() => {
       child.kill()
-      reject(new Error('mayapy 분석 시간 초과'))
+      reject(new Error('mayapy inspection timed out'))
     }, opts.timeoutMs)
     child.stdout.on('data', (d: Buffer) => (out += d.toString('utf8')))
     child.stderr.on('data', (d: Buffer) => (out += d.toString('utf8')))
@@ -241,7 +258,7 @@ export function probeDeep(scenePath: string, opts: DeepProbeOptions): Promise<Pa
     child.on('close', () => {
       clearTimeout(timer)
       const m = /@@RQ:PROBE (\{.*\})/.exec(out)
-      if (!m) return reject(new Error('mayapy 분석 결과 없음'))
+      if (!m) return reject(new Error('mayapy returned no scene metadata'))
       try {
         const d = JSON.parse(m[1])
         resolve({

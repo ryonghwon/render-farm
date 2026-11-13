@@ -80,7 +80,12 @@ function png(w, h, frame, total, hue) {
   ihdr.writeUInt32BE(h, 4)
   ihdr[8] = 8
   ihdr[9] = 2
-  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw)), chunk('IEND', Buffer.alloc(0))])
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', ihdr),
+    chunk('IDAT', zlib.deflateSync(raw)),
+    chunk('IEND', Buffer.alloc(0))
+  ])
 }
 
 async function main() {
@@ -92,10 +97,11 @@ async function main() {
   const text = fs.readFileSync(scene, 'utf8')
   const directive = /\/\/MOCK\s+(.*)/.exec(text)
   const cfg = {}
-  if (directive) for (const kv of directive[1].split(/\s+/)) {
-    const [k, v] = kv.split('=')
-    if (k) cfg[k] = v === undefined ? '1' : v
-  }
+  if (directive)
+    for (const kv of directive[1].split(/\s+/)) {
+      const [k, v] = kv.split('=')
+      if (k) cfg[k] = v === undefined ? '1' : v
+    }
   const speed = Number(cfg.speed || 120)
   const scriptDir = (process.env.MAYA_SCRIPT_PATH || '').split(path.delimiter)[0]
   const bootPath = scriptDir ? path.join(scriptDir, 'rqBoot.mel') : ''
@@ -124,7 +130,16 @@ async function main() {
   if (cfg.warn) err('// Warning: mock warning, missing texture sourceimages/wood.png')
   const total = e - s + 1
   const hue = (im.length * 1.7) % 6.28
-  const gapFile = cfg.licgap ? path.join(os.tmpdir(), 'rd-mock-licgap-' + require('node:crypto').createHash('sha1').update(path.dirname(path.resolve(scene))).digest('hex')) : ''
+  const gapFile = cfg.licgap
+    ? path.join(
+        os.tmpdir(),
+        'rd-mock-licgap-' +
+          require('node:crypto')
+            .createHash('sha1')
+            .update(path.dirname(path.resolve(scene)))
+            .digest('hex')
+      )
+    : ''
   const lastEnd = gapFile && fs.existsSync(gapFile) ? Number(fs.readFileSync(gapFile, 'utf8')) : 0
   const deferred = []
   let firstFrame = true
@@ -137,12 +152,14 @@ async function main() {
     if (markers) out('@@RQ:FRAME_START ' + f + '.0')
     for (let p = 0; p <= 100; p += 25) {
       await sleep(speed / 5)
-      out(`00:00:0${(f % 9)}   ${600 + p}MB         |    ${String(p).padStart(3)}% done - ${10 + p} rays/pixel`)
+      out(`00:00:0${f % 9}   ${600 + p}MB         |    ${String(p).padStart(3)}% done - ${10 + p} rays/pixel`)
     }
     if (firstFrame && gapFile && Date.now() - lastEnd < Number(cfg.licgap)) {
       firstFrame = false
       out('00:00:17  3107MB ERROR   | aborting render because this is a batch render and abort_on_license_fail option is enabled')
-      deferred.push('// Error: line 1: ERROR   | aborting render because this is a batch render and abort_on_license_fail option is enabled')
+      deferred.push(
+        '// Error: line 1: ERROR   | aborting render because this is a batch render and abort_on_license_fail option is enabled'
+      )
       if (markers) out('@@RQ:FRAME_END ' + f + '.0')
       continue
     }
@@ -157,7 +174,14 @@ async function main() {
     }
     const failAt = cfg.fail !== undefined ? Number(cfg.fail) : null
     if (failAt === f) {
-      const flag = path.join(os.tmpdir(), 'rd-mock-' + require('node:crypto').createHash('sha1').update(path.resolve(scene) + ':' + f).digest('hex'))
+      const flag = path.join(
+        os.tmpdir(),
+        'rd-mock-' +
+          require('node:crypto')
+            .createHash('sha1')
+            .update(path.resolve(scene) + ':' + f)
+            .digest('hex')
+      )
       if (cfg.once === undefined || !fs.existsSync(flag)) {
         if (cfg.once !== undefined) fs.writeFileSync(flag, '1')
         err('// Error: mock render crash at frame ' + f)

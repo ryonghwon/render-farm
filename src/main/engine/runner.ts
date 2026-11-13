@@ -40,7 +40,15 @@ export async function detectConsoleEncoding(pref: 'auto' | 'utf8' | 'cp949'): Pr
       if (err) return resolve('cp949')
       const m = /(\d{3,5})/.exec(stdout)
       const cp = m ? Number(m[1]) : 949
-      const map: Record<number, string> = { 65001: 'utf8', 949: 'cp949', 932: 'shift_jis', 936: 'gbk', 950: 'big5', 437: 'cp437', 1252: 'win1252' }
+      const map: Record<number, string> = {
+        65001: 'utf8',
+        949: 'cp949',
+        932: 'shift_jis',
+        936: 'gbk',
+        950: 'big5',
+        437: 'cp437',
+        1252: 'win1252'
+      }
       resolve(map[cp] ?? `cp${cp}`)
     })
   })
@@ -50,7 +58,8 @@ export async function detectConsoleEncoding(pref: 'auto' | 'utf8' | 'cp949'): Pr
 export class RenderProcess extends EventEmitter {
   child: ChildProcess | null = null
   killed = false
-  private buf = ''
+  private buffers = { stdout: '', stderr: '' }
+  private closed = false
 
   constructor(
     private exe: string,
@@ -73,29 +82,31 @@ export class RenderProcess extends EventEmitter {
     const enc = iconv.encodingExists(this.encoding) ? this.encoding : 'utf8'
     const outDec = iconv.getDecoder(enc)
     const errDec = iconv.getDecoder(enc)
-    child.stdout?.on('data', (d: Buffer) => this.feed(outDec.write(d)))
-    child.stderr?.on('data', (d: Buffer) => this.feed(errDec.write(d)))
+    let failed = false
+    child.stdout?.on('data', (d: Buffer) => this.feed('stdout', outDec.write(d)))
+    child.stderr?.on('data', (d: Buffer) => this.feed('stderr', errDec.write(d)))
     child.on('error', (e) => {
-      this.emitEvent({ type: 'line', text: `프로세스 실행 실패: ${e.message}`, level: 'error' })
-      this.emit('exit', -1, null)
+      failed = true
+      this.emitEvent({ type: 'line', text: `Could not start process: ${e.message}`, level: 'error' })
     })
     child.on('close', (code, signal) => {
-      const rest = (outDec.end() ?? '') + (errDec.end() ?? '')
-      if (rest) this.feed(rest)
-      if (this.buf) {
-        this.handleLine(this.buf)
-        this.buf = ''
+      this.feed('stdout', outDec.end() ?? '')
+      this.feed('stderr', errDec.end() ?? '')
+      for (const stream of ['stdout', 'stderr'] as const) {
+        if (this.buffers[stream]) this.handleLine(this.buffers[stream])
+        this.buffers[stream] = ''
       }
-      this.emit('exit', code, signal)
+      this.closed = true
+      this.emit('exit', failed ? -1 : code, signal)
     })
     return child.pid ?? null
   }
 
-  private feed(chunk: string) {
+  private feed(stream: 'stdout' | 'stderr', chunk: string) {
     if (!chunk) return
-    this.buf += chunk
-    const parts = this.buf.split(/\r\n|\n|\r/)
-    this.buf = parts.pop() ?? ''
+    this.buffers[stream] += chunk
+    const parts = this.buffers[stream].split(/\r\n|\n|\r/)
+    this.buffers[stream] = parts.pop() ?? ''
     for (const p of parts) this.handleLine(p)
   }
 
@@ -141,9 +152,17 @@ export class RenderProcess extends EventEmitter {
   }
 
   kill(): void {
-    if (!this.child || this.child.exitCode !== null) return
+    if (!this.child || this.closed) return
     this.killed = true
     killTree(this.child)
+  }
+
+  stop(): Promise<void> {
+    if (!this.child || this.closed) return Promise.resolve()
+    return new Promise((resolve) => {
+      this.once('exit', () => resolve())
+      this.kill()
+    })
   }
 }
 
@@ -163,7 +182,7 @@ export function killTree(child: ChildProcess): void {
       return
     }
   }
-  setTimeout(() => {
+  const forceTimer = setTimeout(() => {
     if (child.exitCode === null && child.signalCode === null) {
       try {
         process.kill(-pid, 'SIGKILL')
@@ -176,4 +195,5 @@ export function killTree(child: ChildProcess): void {
       }
     }
   }, 4000)
+  child.once('close', () => clearTimeout(forceTimer))
 }

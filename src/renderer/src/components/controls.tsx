@@ -7,7 +7,7 @@ export function Field(props: { label: string; overridden?: boolean; onReset?: ()
       <label>
         {props.label}
         {props.overridden && props.onReset && (
-          <button className="reset" title="기본값으로 복원" onClick={props.onReset}>
+          <button className="reset" title="Reset to defaults" onClick={props.onReset}>
             <RotateCcw />
           </button>
         )}
@@ -20,11 +20,24 @@ export function Field(props: { label: string; overridden?: boolean; onReset?: ()
   )
 }
 
-export function Seg<T extends string>(props: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; small?: boolean; disabled?: boolean }) {
+export function Seg<T extends string>(props: {
+  value: T
+  options: { value: T; label: string }[]
+  onChange: (v: T) => void
+  small?: boolean
+  disabled?: boolean
+}) {
   return (
     <div className={`seg${props.small ? ' small' : ''}`} role="radiogroup">
       {props.options.map((o) => (
-        <button key={o.value} role="radio" aria-checked={props.value === o.value} className={props.value === o.value ? 'on' : ''} disabled={props.disabled} onClick={() => props.onChange(o.value)}>
+        <button
+          key={o.value}
+          role="radio"
+          aria-checked={props.value === o.value}
+          className={props.value === o.value ? 'on' : ''}
+          disabled={props.disabled}
+          onClick={() => props.onChange(o.value)}
+        >
           {o.label}
         </button>
       ))}
@@ -33,7 +46,16 @@ export function Seg<T extends string>(props: { value: T; options: { value: T; la
 }
 
 export function Switch(props: { on: boolean; onChange: (v: boolean) => void; disabled?: boolean; label?: string }) {
-  return <button className={`switch${props.on ? ' on' : ''}`} role="switch" aria-checked={props.on} aria-label={props.label} disabled={props.disabled} onClick={() => props.onChange(!props.on)} />
+  return (
+    <button
+      className={`switch${props.on ? ' on' : ''}`}
+      role="switch"
+      aria-checked={props.on}
+      aria-label={props.label}
+      disabled={props.disabled}
+      onClick={() => props.onChange(!props.on)}
+    />
+  )
 }
 
 export function Toggle(props: { on: boolean; onChange: (v: boolean) => void; label: string; hint?: string; disabled?: boolean }) {
@@ -48,7 +70,14 @@ export function Toggle(props: { on: boolean; onChange: (v: boolean) => void; lab
   )
 }
 
-export function TextInput(props: { value: string; onCommit: (v: string) => void; placeholder?: string; mono?: boolean; disabled?: boolean; ariaLabel?: string }) {
+export function TextInput(props: {
+  value: string
+  onCommit: (v: string) => void
+  placeholder?: string
+  mono?: boolean
+  disabled?: boolean
+  ariaLabel?: string
+}) {
   const [v, setV] = useState(props.value)
   useEffect(() => setV(props.value), [props.value])
   const commit = () => {
@@ -75,7 +104,15 @@ export function TextInput(props: { value: string; onCommit: (v: string) => void;
   )
 }
 
-export function NumberInput(props: { value: number; onCommit: (v: number) => void; min?: number; max?: number; disabled?: boolean; ariaLabel?: string; width?: number }) {
+export function NumberInput(props: {
+  value: number
+  onCommit: (v: number) => void
+  min?: number
+  max?: number
+  disabled?: boolean
+  ariaLabel?: string
+  width?: number
+}) {
   const [v, setV] = useState(String(props.value))
   useEffect(() => setV(String(props.value)), [props.value])
   const commit = () => {
@@ -112,9 +149,22 @@ export function NumberInput(props: { value: number; onCommit: (v: number) => voi
   )
 }
 
-export function Select<T extends string>(props: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; disabled?: boolean; ariaLabel?: string; className?: string }) {
+export function Select<T extends string>(props: {
+  value: T
+  options: { value: T; label: string }[]
+  onChange: (v: T) => void
+  disabled?: boolean
+  ariaLabel?: string
+  className?: string
+}) {
   return (
-    <select className={`select ${props.className ?? ''}`} value={props.value} disabled={props.disabled} aria-label={props.ariaLabel} onChange={(e) => props.onChange(e.target.value as T)}>
+    <select
+      className={`select ${props.className ?? ''}`}
+      value={props.value}
+      disabled={props.disabled}
+      aria-label={props.ariaLabel}
+      onChange={(e) => props.onChange(e.target.value as T)}
+    >
       {props.options.map((o) => (
         <option key={o.value} value={o.value}>
           {o.label}

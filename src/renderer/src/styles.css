@@ -150,7 +150,9 @@ bdi {
   box-shadow: var(--btn-shadow);
   font-weight: 500;
   white-space: nowrap;
-  transition: background 0.12s, color 0.12s;
+  transition:
+    background 0.12s,
+    color 0.12s;
 }
 .btn:hover:not(:disabled) {
   background: #f7f7f5;
@@ -179,7 +181,9 @@ bdi {
 .btn.primary {
   background: var(--accent);
   color: #fff;
-  box-shadow: inset 0 0 0 1px rgba(15, 15, 15, 0.1), 0 1px 2px rgba(15, 15, 15, 0.1);
+  box-shadow:
+    inset 0 0 0 1px rgba(15, 15, 15, 0.1),
+    0 1px 2px rgba(15, 15, 15, 0.1);
   font-weight: 600;
 }
 .btn.primary:hover:not(:disabled) {
@@ -221,7 +225,9 @@ bdi {
   text-decoration: underline;
   text-decoration-color: rgba(55, 53, 47, 0.25);
   text-underline-offset: 3px;
-  transition: color 0.12s, text-decoration-color 0.12s;
+  transition:
+    color 0.12s,
+    text-decoration-color 0.12s;
 }
 .link:hover:not(:disabled) {
   color: var(--text);
@@ -256,7 +262,9 @@ bdi {
   border-radius: 4px;
   color: var(--text-2);
   white-space: nowrap;
-  transition: background 0.12s, color 0.12s;
+  transition:
+    background 0.12s,
+    color 0.12s;
 }
 .seg button:hover:not(:disabled) {
   color: var(--text);
@@ -265,7 +273,9 @@ bdi {
   background: var(--bg);
   color: var(--text);
   font-weight: 500;
-  box-shadow: 0 1px 2px rgba(15, 15, 15, 0.12), 0 0 0 1px rgba(15, 15, 15, 0.04);
+  box-shadow:
+    0 1px 2px rgba(15, 15, 15, 0.12),
+    0 0 0 1px rgba(15, 15, 15, 0.04);
 }
 .seg button:disabled {
   cursor: default;
@@ -408,7 +418,9 @@ bdi {
   display: grid;
   place-items: center;
   padding: 0;
-  transition: background 0.1s, border-color 0.1s;
+  transition:
+    background 0.1s,
+    border-color 0.1s;
 }
 .check:hover:not(:disabled) {
   background: var(--hover);
@@ -803,7 +815,9 @@ bdi {
   border: 1px solid var(--line);
   background: var(--bg);
   text-align: left;
-  transition: background 0.12s, border-color 0.12s;
+  transition:
+    background 0.12s,
+    border-color 0.12s;
 }
 .hero .cbox:hover {
   background: #fafaf9;
@@ -935,7 +949,9 @@ bdi {
   color: var(--text-2);
   font-size: 13px;
   white-space: nowrap;
-  transition: background 0.12s, color 0.12s;
+  transition:
+    background 0.12s,
+    color 0.12s;
 }
 .chip:hover:not(:disabled) {
   color: var(--text);
@@ -944,7 +960,9 @@ bdi {
   background: var(--bg);
   color: var(--text);
   font-weight: 600;
-  box-shadow: 0 1px 2px rgba(15, 15, 15, 0.12), 0 0 0 1px rgba(15, 15, 15, 0.04);
+  box-shadow:
+    0 1px 2px rgba(15, 15, 15, 0.12),
+    0 0 0 1px rgba(15, 15, 15, 0.04);
 }
 .chip:disabled {
   cursor: default;
@@ -1199,12 +1217,16 @@ bdi {
   width: 100%;
   min-width: 0;
   outline: none;
-  transition: box-shadow 0.12s, background-color 0.12s;
+  transition:
+    box-shadow 0.12s,
+    background-color 0.12s;
 }
 .input:focus,
 .select:focus {
   background-color: var(--bg);
-  box-shadow: inset 0 0 0 1px rgba(35, 131, 226, 0.57), 0 0 0 3px rgba(35, 131, 226, 0.2);
+  box-shadow:
+    inset 0 0 0 1px rgba(35, 131, 226, 0.57),
+    0 0 0 3px rgba(35, 131, 226, 0.2);
 }
 .input.num {
   width: 76px;
@@ -1496,7 +1518,9 @@ bdi {
   background: var(--bg);
   text-align: left;
   width: 100%;
-  transition: background 0.12s, box-shadow 0.12s;
+  transition:
+    background 0.12s,
+    box-shadow 0.12s;
 }
 .choice:hover:not(:disabled) {
   background: #fafaf9;
@@ -1797,7 +1821,9 @@ details.more[open] > summary svg {
   display: flex;
   align-items: center;
   gap: 9px;
-  transition: background 0.1s, color 0.1s;
+  transition:
+    background 0.1s,
+    color 0.1s;
 }
 .settings-nav button:hover {
   color: var(--text);

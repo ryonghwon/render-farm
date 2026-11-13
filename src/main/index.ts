@@ -1,3 +1,4 @@
+import { resolveDataDir } from './data-directory'
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, Notification, net, powerSaveBlocker, protocol, shell } from 'electron'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -7,10 +8,12 @@ import { Engine } from './engine/engine'
 import { findFfmpeg, thumbnail } from './engine/ffmpeg'
 import type { AppInfo, AppSettings, CompletionAction, JobPatch, PreviewInfo, RenderSettings } from '../shared/types'
 
-const E2E_SCRIPT = process.env.RENDERFARM_E2E_SCRIPT
-if (process.env.RENDERFARM_DATA_DIR) app.setPath('userData', process.env.RENDERFARM_DATA_DIR)
+const E2E_SCRIPT = !app.isPackaged ? process.env.RENDERFARM_E2E_SCRIPT : undefined
+app.setPath('userData', resolveDataDir(app.getPath('appData'), process.env.RENDERFARM_DATA_DIR))
 
-protocol.registerSchemesAsPrivileged([{ scheme: 'rdfile', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, bypassCSP: false } }])
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'rdfile', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, bypassCSP: false } }
+])
 
 let win: BrowserWindow | null = null
 let engine: Engine
@@ -19,7 +22,8 @@ let quitting = false
 let pushTimer: NodeJS.Timeout | null = null
 let lastPush = 0
 
-if (!E2E_SCRIPT && !app.requestSingleInstanceLock()) {
+const primaryInstance = !!E2E_SCRIPT || app.requestSingleInstanceLock()
+if (!primaryInstance) {
   app.quit()
 } else {
   app.on('second-instance', () => {
@@ -81,16 +85,15 @@ function createWindow(): void {
     e.preventDefault()
     const r = await dialog.showMessageBox(win!, {
       type: 'warning',
-      buttons: ['렌더 중지 후 종료', '계속 렌더'],
+      buttons: ['Stop rendering and quit', 'Keep rendering'],
       defaultId: 1,
       cancelId: 1,
       title: 'Render Farm',
-      message: '렌더가 진행 중입니다.',
-      detail: '종료하면 진행 중인 렌더 프로세스가 중지됩니다. 다음 실행 시 남은 프레임부터 이어서 렌더할 수 있습니다.'
+      message: 'Rendering is in progress.',
+      detail: 'Quitting stops active render processes. You can resume the remaining frames the next time you open the app.'
     })
     if (r.response === 0) {
       quitting = true
-      await engine.shutdown()
       app.quit()
     }
   })
@@ -120,7 +123,7 @@ async function previewFor(jobId: string): Promise<PreviewInfo> {
   const job = engine.jobs.find((j) => j.id === jobId)
   const video = job?.previewVideo && fs.existsSync(job.previewVideo) ? `rdfile://local/${encodeURIComponent(job.previewVideo)}` : null
   const lf = engine.latestFrame(jobId)
-  if (!lf) return { frame: null, path: null, dataUrl: null, video, message: '렌더된 프레임 없음' }
+  if (!lf) return { frame: null, path: null, dataUrl: null, video, message: 'No rendered frames' }
   const ext = path.extname(lf.path).toLowerCase()
   try {
     if (ext === '.png' || ext === '.jpg' || ext === '.jpeg') {
@@ -132,30 +135,55 @@ async function previewFor(jobId: string): Promise<PreviewInfo> {
       }
     }
     const ffmpeg = findFfmpeg(engine.app.ffmpegPath)
-    if (!ffmpeg) return { frame: lf.frame, path: lf.path, dataUrl: null, video, message: `${ext.slice(1).toUpperCase()} 미리보기에 ffmpeg 필요` }
+    if (!ffmpeg)
+      return {
+        frame: lf.frame,
+        path: lf.path,
+        dataUrl: null,
+        video,
+        message: `FFmpeg is required to preview ${ext.slice(1).toUpperCase()} files`
+      }
     const cacheDir = path.join(app.getPath('temp'), 'renderfarm-thumbs')
     fs.mkdirSync(cacheDir, { recursive: true })
     const st = fs.statSync(lf.path)
     const out = path.join(cacheDir, `${Buffer.from(lf.path).toString('base64url').slice(-48)}_${Math.round(st.mtimeMs)}.jpg`)
     if (!fs.existsSync(out)) await thumbnail(ffmpeg, lf.path, out, 960)
     const img = nativeImage.createFromPath(out)
-    return { frame: lf.frame, path: lf.path, dataUrl: img.isEmpty() ? null : img.toDataURL(), video, message: img.isEmpty() ? '미리보기 생성 실패' : null }
+    return {
+      frame: lf.frame,
+      path: lf.path,
+      dataUrl: img.isEmpty() ? null : img.toDataURL(),
+      video,
+      message: img.isEmpty() ? 'Could not generate preview' : null
+    }
   } catch (e) {
-    return { frame: lf.frame, path: lf.path, dataUrl: null, video, message: `미리보기 생성 실패: ${(e as Error).message}` }
+    return { frame: lf.frame, path: lf.path, dataUrl: null, video, message: `Could not generate preview: ${(e as Error).message}` }
   }
 }
 
 function registerIpc(): void {
-  const h = (ch: string, fn: (...args: any[]) => unknown) => ipcMain.handle(ch, (_e, ...args) => fn(...args))
+  const h = (ch: string, fn: (...args: any[]) => unknown) =>
+    ipcMain.handle(ch, (event, ...args) => {
+      if (event.sender !== win?.webContents || event.senderFrame !== win.webContents.mainFrame) throw new Error('Unknown IPC sender')
+      return fn(...args)
+    })
   h('state:get', () => engine.snapshot())
   h('log:get', (jobId: string | null) => engine.getLog(jobId))
   h('jobs:add', (paths: string[]) => engine.addPaths(paths))
   h('jobs:pickFiles', async () => {
-    const r = await dialog.showOpenDialog(win!, { title: '씬 파일 추가', properties: ['openFile', 'multiSelections'], filters: [{ name: '씬 파일', extensions: ['ma', 'mb', 'blend'] }, { name: 'Maya 씬', extensions: ['ma', 'mb'] }, { name: 'Blender 파일', extensions: ['blend'] }] })
+    const r = await dialog.showOpenDialog(win!, {
+      title: 'Add scene files',
+      properties: ['openFile', 'multiSelections'],
+      filters: [
+        { name: 'Scene files', extensions: ['ma', 'mb', 'blend'] },
+        { name: 'Maya scenes', extensions: ['ma', 'mb'] },
+        { name: 'Blender files', extensions: ['blend'] }
+      ]
+    })
     return r.canceled ? { added: 0, skipped: 0 } : engine.addPaths(r.filePaths)
   })
   h('jobs:pickFolder', async () => {
-    const r = await dialog.showOpenDialog(win!, { title: '폴더 추가', properties: ['openDirectory', 'multiSelections'] })
+    const r = await dialog.showOpenDialog(win!, { title: 'Add folder', properties: ['openDirectory', 'multiSelections'] })
     return r.canceled ? { added: 0, skipped: 0 } : engine.addPaths(r.filePaths)
   })
   h('jobs:remove', (ids: string[]) => engine.removeJobs(ids))
@@ -185,7 +213,14 @@ function registerIpc(): void {
   h('apps:detect', () => engine.detectApps())
   h('apps:add', async (app: 'maya' | 'blender') => {
     const r = await dialog.showOpenDialog(win!, {
-      title: process.platform === 'darwin' ? (app === 'blender' ? 'Blender 앱 선택' : 'Maya 앱 선택') : app === 'blender' ? 'blender.exe 선택' : 'Render.exe 선택',
+      title:
+        process.platform === 'darwin'
+          ? app === 'blender'
+            ? 'Choose Blender application'
+            : 'Choose Maya application'
+          : app === 'blender'
+            ? 'Choose blender.exe'
+            : 'Choose Render.exe',
       properties: ['openFile'],
       filters: process.platform === 'win32' ? [{ name: app === 'blender' ? 'blender.exe' : 'Render.exe', extensions: ['exe'] }] : []
     })
@@ -193,11 +228,15 @@ function registerIpc(): void {
   })
   h('apps:remove', (id: string) => engine.removeInstall(id))
   h('dialog:outputDir', async (current?: string) => {
-    const r = await dialog.showOpenDialog(win!, { title: '저장 폴더 선택', defaultPath: current || undefined, properties: ['openDirectory', 'createDirectory'] })
+    const r = await dialog.showOpenDialog(win!, {
+      title: 'Choose output folder',
+      defaultPath: current || undefined,
+      properties: ['openDirectory', 'createDirectory']
+    })
     return r.canceled ? null : r.filePaths[0]
   })
   h('dialog:ffmpeg', async () => {
-    const r = await dialog.showOpenDialog(win!, { title: 'ffmpeg 선택', properties: ['openFile'] })
+    const r = await dialog.showOpenDialog(win!, { title: 'Choose FFmpeg', properties: ['openFile'] })
     return r.canceled ? null : r.filePaths[0]
   })
   h('shell:open', async (p: string) => {
@@ -207,7 +246,16 @@ function registerIpc(): void {
   })
   h('shell:show', (p: string) => p && shell.showItemInFolder(p))
   h('preview:get', (jobId: string) => previewFor(jobId))
-  h('app:info', (): AppInfo => ({ version: app.getVersion(), platform: process.platform, dataDir: app.getPath('userData'), cores: os.cpus().length, electron: process.versions.electron }))
+  h(
+    'app:info',
+    (): AppInfo => ({
+      version: app.getVersion(),
+      platform: process.platform,
+      dataDir: app.getPath('userData'),
+      cores: os.cpus().length,
+      electron: process.versions.electron
+    })
+  )
   h('logs:dir', (jobId: string | null) => {
     const dir = jobId ? path.join(app.getPath('userData'), 'logs', jobId) : path.join(app.getPath('userData'), 'logs')
     fs.mkdirSync(dir, { recursive: true })
@@ -215,45 +263,64 @@ function registerIpc(): void {
   })
 }
 
-app.whenReady().then(async () => {
-  if (process.platform === 'win32') app.setAppUserModelId('kr.ac.kaywon.renderfarm')
-  if (process.platform !== 'darwin') Menu.setApplicationMenu(null)
-  protocol.handle('rdfile', (req) => {
-    const url = new URL(req.url)
-    const p = decodeURIComponent(url.pathname.replace(/^\//, ''))
-    return net.fetch(pathToFileURL(p).toString())
-  })
-  migrateLegacyData(app.getPath('userData'))
-  engine = new Engine({ dataDir: app.getPath('userData'), dryRunPower: process.env.RENDERFARM_DRY_POWER === '1' })
-  engine.on('change', pushState)
-  engine.on('log', (lines) => win && !win.isDestroyed() && win.webContents.send('log', lines))
-  engine.on('notify', (n: { title: string; body: string }) => notify(n.title, n.body))
-  engine.on('awake', (on: boolean) => setAwake(on))
-  engine.on('progress', (p: number) => win && !win.isDestroyed() && win.setProgressBar(p, { mode: p < 0 ? 'none' : 'normal' }))
-  engine.on('countdown', () => {
-    if (win && !win.isDestroyed()) {
-      if (win.isMinimized()) win.restore()
-      win.show()
-      win.flashFrame(true)
+if (primaryInstance)
+  app.whenReady().then(async () => {
+    if (process.platform === 'win32') app.setAppUserModelId('kr.ac.kaywon.renderfarm')
+    if (process.platform !== 'darwin') Menu.setApplicationMenu(null)
+    protocol.handle('rdfile', (req) => {
+      const url = new URL(req.url)
+      const p = decodeURIComponent(url.pathname.replace(/^\//, ''))
+      return net.fetch(pathToFileURL(p).toString())
+    })
+    migrateLegacyData(app.getPath('userData'))
+    engine = new Engine({ dataDir: app.getPath('userData'), dryRunPower: process.env.RENDERFARM_DRY_POWER === '1' })
+    engine.on('change', pushState)
+    engine.on('log', (lines) => win && !win.isDestroyed() && win.webContents.send('log', lines))
+    engine.on('notify', (n: { title: string; body: string }) => notify(n.title, n.body))
+    engine.on('awake', (on: boolean) => setAwake(on))
+    engine.on('progress', (p: number) => win && !win.isDestroyed() && win.setProgressBar(p, { mode: p < 0 ? 'none' : 'normal' }))
+    engine.on('countdown', () => {
+      if (win && !win.isDestroyed()) {
+        if (win.isMinimized()) win.restore()
+        win.show()
+        win.flashFrame(true)
+      }
+    })
+    engine.on('quit', () => {
+      quitting = true
+      app.quit()
+    })
+    await engine.init()
+    registerIpc()
+    createWindow()
+    if (E2E_SCRIPT && win) {
+      const mod = await import(pathToFileURL(E2E_SCRIPT).href)
+      const run = (mod.default ?? mod) as (ctx: unknown) => Promise<void>
+      await run({ engine, win, app, path, fs })
     }
   })
-  engine.on('quit', () => {
-    quitting = true
-    app.quit()
-  })
-  await engine.init()
-  registerIpc()
-  createWindow()
-  if (E2E_SCRIPT && win) {
-    const mod = await import(pathToFileURL(E2E_SCRIPT).href)
-    const run = (mod.default ?? mod) as (ctx: unknown) => Promise<void>
-    await run({ engine, win, app, path, fs })
-  }
-})
 
-app.on('before-quit', () => {
+let shutdownComplete = false
+let shutdownStarted = false
+app.on('before-quit', (event) => {
+  if (!engine || shutdownComplete) return
+  event.preventDefault()
+  if (shutdownStarted) return
+  shutdownStarted = true
   quitting = true
-  void engine?.shutdown()
+  if (pushTimer) clearTimeout(pushTimer)
+  void engine
+    .shutdown()
+    .then(() => {
+      setAwake(false)
+      shutdownComplete = true
+      app.quit()
+    })
+    .catch((error: Error) => {
+      shutdownStarted = false
+      quitting = false
+      dialog.showErrorBox('Could not close Render Farm', error.message)
+    })
 })
 
 app.on('window-all-closed', () => {

@@ -54,7 +54,9 @@ export function scanFrames(dir: string, hint: string, maxDepth = 4): FrameFile[]
 const MAIN_AOVS = new Set(['beauty', 'rgba'])
 
 export function dropAuxAovs(files: FrameFile[]): FrameFile[] {
-  const roots = new Set(files.filter((f) => MAIN_AOVS.has(path.basename(path.dirname(f.path)).toLowerCase())).map((f) => path.dirname(path.dirname(f.path))))
+  const roots = new Set(
+    files.filter((f) => MAIN_AOVS.has(path.basename(path.dirname(f.path)).toLowerCase())).map((f) => path.dirname(path.dirname(f.path)))
+  )
   if (!roots.size) return files
   return files.filter((f) => {
     const dir = path.dirname(f.path)
@@ -94,7 +96,15 @@ export function primarySequence(files: FrameFile[], preferStem = ''): Sequence |
     const p = parseFrameName(path.basename(f.path))
     if (!p) continue
     const key = `${path.dirname(f.path)}|${p.stem}|${p.ext}`
-    const g = groups.get(key) || { dir: path.dirname(f.path), stem: p.stem, sep: p.sep, ext: p.ext, frames: [], depth: f.depth, digits: p.digits }
+    const g = groups.get(key) || {
+      dir: path.dirname(f.path),
+      stem: p.stem,
+      sep: p.sep,
+      ext: p.ext,
+      frames: [],
+      depth: f.depth,
+      digits: p.digits
+    }
     g.frames.push(f.frame)
     groups.set(key, g)
   }

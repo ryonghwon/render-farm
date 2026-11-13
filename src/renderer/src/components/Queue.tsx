@@ -49,13 +49,13 @@ export function Queue({ dragActive }: { dragActive: boolean }) {
   }
 
   return (
-    <section className="card queue" aria-label="렌더 목록">
+    <section className="card queue" aria-label="Render queue">
       <div className="queue-head">
         {selJobs.length ? (
           <div className="sel">
-            <span className="sel-count">{selJobs.length}개 선택됨</span>
+            <span className="sel-count">{selJobs.length} selected</span>
             <button className="btn small" onClick={() => openDetails(selected)}>
-              씬 설정
+              Scene settings
             </button>
             <button
               className="btn small"
@@ -65,18 +65,18 @@ export function Queue({ dragActive }: { dragActive: boolean }) {
                 setSelected([])
               }}
             >
-              목록에서 빼기
+              Remove from queue
             </button>
             <button className="link" onClick={() => setSelected([])}>
-              선택 해제
+              Clear selection
             </button>
           </div>
         ) : (
           <>
-            <h2>렌더 목록</h2>
+            <h2>Render queue</h2>
             {snap.jobs.length > 0 && (
               <span className="q-count">
-                씬 {enabled.length}개, {num(totalFrames)}프레임
+                Scenes: {enabled.length} · {num(totalFrames)} frames
               </span>
             )}
           </>
@@ -84,12 +84,16 @@ export function Queue({ dragActive }: { dragActive: boolean }) {
         <span className="spacer" />
         {hasFinished && !selJobs.length && (
           <button className="btn small ghost" onClick={() => window.rd.clearFinished()}>
-            끝난 씬 지우기
+            Clear finished scenes
           </button>
         )}
-        <button className={`btn small${logOpen ? ' on' : ' outline'}`} aria-pressed={logOpen} onClick={() => window.rd.updateApp({ logOpen: !logOpen })}>
+        <button
+          className={`btn small${logOpen ? ' on' : ' outline'}`}
+          aria-pressed={logOpen}
+          onClick={() => window.rd.updateApp({ logOpen: !logOpen })}
+        >
           <ScrollText />
-          로그
+          Log
         </button>
       </div>
       {snap.jobs.length === 0 ? (
@@ -98,16 +102,16 @@ export function Queue({ dragActive }: { dragActive: boolean }) {
             <div className="empty-icon" aria-hidden>
               <Upload />
             </div>
-            <h2>렌더 목록이 비어 있습니다</h2>
-            <p>Maya(.ma, .mb)와 Blender(.blend) 파일이나 폴더를 끌어 놓아 씬을 추가합니다.</p>
+            <h2>Your render queue is empty</h2>
+            <p>Drop Maya (.ma, .mb) or Blender (.blend) files, or a folder, to add scenes.</p>
             <div className="actions">
               <button className="btn primary" onClick={() => addScenes('files')}>
                 <FilePlus2 />
-                파일 추가…
+                Add files…
               </button>
               <button className="btn outline" onClick={() => addScenes('folder')}>
                 <FolderPlus />
-                폴더 추가…
+                Add folder…
               </button>
             </div>
           </div>
@@ -126,8 +130,8 @@ export function Queue({ dragActive }: { dragActive: boolean }) {
       {dragActive && (
         <div className="drop-overlay">
           <div>
-            놓으면 렌더 목록에 추가
-            <small>.ma, .mb, .blend 파일 또는 폴더</small>
+            Drop to add to queue
+            <small>.ma, .mb, .blend files or folders</small>
           </div>
         </div>
       )}
@@ -146,26 +150,28 @@ function statusOf(job: Job): StatusView {
   const total = job.frames.length
   const done = Math.min(job.doneFrames.length, total)
   const pct = total ? Math.floor((done / total) * 100) : 0
-  if (job.info.state === 'pending' || job.info.state === 'running') return { kind: 'text', main: '분석 중' }
-  if (!job.enabled && job.status === 'idle') return { kind: 'text', main: '제외' }
+  if (job.info.state === 'pending' || job.info.state === 'running') return { kind: 'text', main: 'Inspecting' }
+  if (!job.enabled && job.status === 'idle') return { kind: 'text', main: 'Excluded' }
   switch (job.status) {
     case 'rendering': {
       const cur = job.tasks.find((t) => t.status === 'running')
-      const sub = waitLabel(job) ?? (job.etaMs ? `남은 시간 ${duration(job.etaMs, true)}` : cur?.currentFrame != null ? `프레임 ${cur.currentFrame}` : '씬 여는 중')
+      const sub =
+        waitLabel(job) ??
+        (job.etaMs ? `Remaining: ${duration(job.etaMs, true)}` : cur?.currentFrame != null ? `Frame ${cur.currentFrame}` : 'Opening scene')
       return { kind: 'pct', main: `${pct}`, sub }
     }
     case 'done':
-      return { kind: 'badge', main: '완료', tone: 'done', sub: duration(job.elapsedMs) }
+      return { kind: 'badge', main: 'Complete', tone: 'done', sub: duration(job.elapsedMs) }
     case 'partial':
-      return { kind: 'badge', main: '빠진 프레임', tone: 'warn', sub: `${num(job.missingFrames.length)}개` }
+      return { kind: 'badge', main: 'Missing frames', tone: 'warn', sub: `${num(job.missingFrames.length)}` }
     case 'failed':
-      return { kind: 'badge', main: '실패', tone: 'failed' }
+      return { kind: 'badge', main: 'Failed', tone: 'failed' }
     case 'stopped':
-      return { kind: 'badge', main: `중지됨 ${pct}%`, tone: 'plain', sub: '이어서 렌더 가능' }
+      return { kind: 'badge', main: `Stopped at ${pct}%`, tone: 'plain', sub: 'Ready to resume' }
     case 'skipped':
-      return { kind: 'text', main: '건너뜀' }
+      return { kind: 'text', main: 'Skipped' }
     default:
-      return { kind: 'text', main: '대기' }
+      return { kind: 'text', main: 'Queued' }
   }
 }
 
@@ -181,7 +187,7 @@ function Row({ job, snap, selected }: { job: Job; snap: Snapshot; selected: bool
   const overrides = overrideGroups(job)
   const busy = info.state === 'pending' || info.state === 'running'
   const renderCams = info.cameras.filter((c) => c.renderable).map((c) => c.name)
-  const camera = s.camera || renderCams.join(', ') || '카메라 미지정'
+  const camera = s.camera || renderCams.join(', ') || 'No camera assigned'
   const st = statusOf(job)
   const issues = job.status === 'done' ? [] : job.issues.filter((i) => i.level === 'error' || i.level === 'warn')
   const issue = issues[0]
@@ -194,7 +200,12 @@ function Row({ job, snap, selected }: { job: Job; snap: Snapshot; selected: bool
     else select(job.id, 'single')
   }
 
-  const canFix = issue?.fix && editable && (!locked || !issue.fix.patch || Object.keys(issue.fix.patch).every((k) => ['frameMode', 'start', 'end', 'step', 'camera', 'layers'].includes(k)))
+  const canFix =
+    issue?.fix &&
+    editable &&
+    (!locked ||
+      !issue.fix.patch ||
+      Object.keys(issue.fix.patch).every((k) => ['frameMode', 'start', 'end', 'step', 'camera', 'layers'].includes(k)))
 
   return (
     <div
@@ -212,11 +223,11 @@ function Row({ job, snap, selected }: { job: Job; snap: Snapshot; selected: bool
       {...listeners}
       role="option"
       aria-selected={selected}
-      aria-roledescription="씬"
+      aria-roledescription="Scene"
     >
       <button
         className={`check${job.enabled ? ' on' : ''}`}
-        aria-label={job.enabled ? '렌더 대상에서 제외' : '렌더 대상에 포함'}
+        aria-label={job.enabled ? 'Exclude from rendering' : 'Include in rendering'}
         disabled={!editable}
         onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => {
@@ -230,14 +241,14 @@ function Row({ job, snap, selected }: { job: Job; snap: Snapshot; selected: bool
         <div className="row-name">
           <span title={job.scenePath}>{job.sceneName}</span>
           {overrides > 0 && (
-            <span className="over-tag" title="이 씬에만 적용된 설정이 있습니다">
-              따로 설정
+            <span className="over-tag" title="This scene has custom settings">
+              Overrides
             </span>
           )}
         </div>
         <div className="row-meta">
           {busy ? (
-            <span>씬 분석 중</span>
+            <span>Inspecting scene</span>
           ) : (
             <>
               <span className="v prog">
@@ -245,7 +256,7 @@ function Row({ job, snap, selected }: { job: Job; snap: Snapshot; selected: bool
                 {job.info.version ? ` ${job.info.version}` : ''}
               </span>
               <span className={`v${job.overrides.frameMode ? ' over' : ''}`}>
-                {frameRange(job.frames)}, {num(job.frames.length)}프레임
+                {frameRange(job.frames)}, {num(job.frames.length)} frames
               </span>
               <span className={`v${job.overrides.camera ? ' over' : ''}`}>{camera}</span>
               <span className={`v${job.overrides.format ? ' over' : ''}`}>{FORMAT_INFO[s.format]?.label}</span>
@@ -254,10 +265,14 @@ function Row({ job, snap, selected }: { job: Job; snap: Snapshot; selected: bool
         </div>
         <FrameStrip job={job} />
         {issue && (
-          <div className={`row-issue${issue.level === 'error' ? ' error' : ''}`} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+          <div
+            className={`row-issue${issue.level === 'error' ? ' error' : ''}`}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
             <span className="msg">
               {issue.message}
-              {issues.length > 1 ? ` 외 ${issues.length - 1}건` : ''}
+              {issues.length > 1 ? ` and ${issues.length - 1} more` : ''}
             </span>
             {canFix && (
               <button className="link strong" onClick={() => applyFix(job, issue)}>
@@ -266,16 +281,16 @@ function Row({ job, snap, selected }: { job: Job; snap: Snapshot; selected: bool
             )}
             {issue.level !== 'error' && editable && (
               <button className="link" onClick={() => dismissIssue(job, issue)}>
-                무시
+                Ignore
               </button>
             )}
           </div>
         )}
         {failNote && (
           <div className="row-issue error" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
-            <span className="msg">{job.status === 'partial' ? job.error : `렌더 실패: ${job.error}`}</span>
+            <span className="msg">{job.status === 'partial' ? job.error : `Render failed: ${job.error}`}</span>
             <button className="link strong" onClick={() => window.rd.resetJobs([job.id], 'missing')}>
-              빠진 프레임 다시 렌더
+              Render missing frames
             </button>
           </div>
         )}
@@ -295,7 +310,7 @@ function Row({ job, snap, selected }: { job: Job; snap: Snapshot; selected: bool
       </div>
       <button
         className="btn ghost icon small row-more"
-        aria-label="더 보기"
+        aria-label="More options"
         onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => {
           e.stopPropagation()

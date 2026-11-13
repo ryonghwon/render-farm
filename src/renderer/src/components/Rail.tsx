@@ -6,7 +6,7 @@ import { ACTION_LABEL, FORMAT_INFO, duration, num, waitLabel } from '../format'
 
 export function Rail() {
   return (
-    <aside className="rail" aria-label="렌더 현황">
+    <aside className="rail" aria-label="Render status">
       <ProgressCard />
       <OutputCard />
       <NowCard />
@@ -28,47 +28,53 @@ function ProgressCard() {
   const allDone = !running && stats.jobsTotal > 0 && stats.jobsDone === stats.jobsTotal
   const started = running || stats.doneFrames > 0
   const pct = Math.floor(stats.progress * 100)
-  const state = running ? (paused ? '잠시 멈춤' : '렌더 중') : allDone ? '완료' : stats.jobsTotal ? '준비됨' : '대기'
+  const state = running ? (paused ? 'Paused' : 'Rendering') : allDone ? 'Complete' : stats.jobsTotal ? 'Ready' : 'Queued'
   const tone = running ? (paused ? 'paused' : 'on') : allDone ? 'done' : ''
-  let timeLabel = '남은 시간'
+  let timeLabel = 'Time remaining'
   let timeValue = '-'
   if (running) {
-    timeValue = paused ? '진행 중인 씬 후 멈춤' : stats.etaMs ? duration(stats.etaMs, true) : '계산 중'
-    if (!paused && stats.etaMs && stats.etaEstimated) timeLabel = '남은 시간(추정)'
+    timeValue = paused ? 'Pausing after active scenes' : stats.etaMs ? duration(stats.etaMs, true) : 'Calculating'
+    if (!paused && stats.etaMs && stats.etaEstimated) timeLabel = 'Estimated time remaining'
   } else if (allDone) {
     const ran = snap.jobs.filter((j) => j.enabled && j.startedAt && j.finishedAt)
     if (ran.length) {
-      timeLabel = '걸린 시간'
+      timeLabel = 'Elapsed'
       timeValue = duration(Math.max(...ran.map((j) => j.finishedAt!)) - Math.min(...ran.map((j) => j.startedAt!)))
     }
   } else if (stats.etaMs) {
-    timeLabel = stats.etaEstimated ? '예상 시간(추정)' : '예상 시간'
+    timeLabel = stats.etaEstimated ? 'Estimated duration' : 'Estimated time'
     timeValue = duration(stats.etaMs, true)
   }
   return (
-    <section className="card hero" aria-label="전체 진행">
+    <section className="card hero" aria-label="Overall progress">
       <div className="hero-top">
         <span className={`state ${tone}`}>
           <i />
           {state}
         </span>
         {snap.awake && (
-          <span className="awake" title="렌더 중 절전 모드 진입 방지">
+          <span className="awake" title="Keep the computer awake while rendering">
             <MoonStar />
           </span>
         )}
       </div>
       <div className="big">
         <span>{started ? pct : num(stats.totalFrames)}</span>
-        <small>{started ? '%' : '프레임'}</small>
+        <small>{started ? '%' : 'frames'}</small>
       </div>
-      <div className="hero-cap">{started ? `${num(stats.doneFrames)} / ${num(stats.totalFrames)}프레임` : stats.jobsTotal ? `렌더 대상 씬 ${stats.jobsTotal}개` : '렌더 목록 비어 있음'}</div>
+      <div className="hero-cap">
+        {started
+          ? `${num(stats.doneFrames)} / ${num(stats.totalFrames)} frames`
+          : stats.jobsTotal
+            ? `${stats.jobsTotal} scenes to render`
+            : 'Queue is empty'}
+      </div>
       <div className={`gbar${allDone ? ' done' : ''}`}>
         <i style={{ width: `${started ? stats.progress * 100 : 0}%` }} />
       </div>
       <div className="minis">
         <div className="mini">
-          <span className="lbl">끝난 씬</span>
+          <span className="lbl">Completed scenes</span>
           <b>
             {stats.jobsDone}
             <small> / {stats.jobsTotal}</small>
@@ -79,17 +85,17 @@ function ProgressCard() {
           <b className={timeValue.length > 8 ? 'sm' : ''}>{timeValue}</b>
         </div>
       </div>
-      {!running && stats.jobsFailed > 0 && <div className="hero-warn">확인 필요 씬 {stats.jobsFailed}개</div>}
+      {!running && stats.jobsFailed > 0 && <div className="hero-warn">Scenes needing attention {stats.jobsFailed}</div>}
       <button
         className={`cbox${armed ? ' on' : ''}`}
         role="switch"
         aria-checked={armed}
-        title={`모든 씬이 끝나면 ${app.countdownSeconds}초 카운트다운 후 실행합니다. 카운트다운 중 취소할 수 있습니다.`}
+        title={`Runs ${app.countdownSeconds} seconds after the queue finishes. You can cancel during the countdown.`}
         onClick={() => window.rd.setCompletion(armed ? 'none' : kind)}
       >
         <span className="cb-text">
-          <b>끝나면 {ACTION_LABEL[kind]}</b>
-          <small>{armed ? `모두 끝나면 ${app.countdownSeconds}초 뒤 실행` : '사용 안 함'}</small>
+          <b>On completion: {ACTION_LABEL[kind]}</b>
+          <small>{armed ? `Runs ${app.countdownSeconds} seconds after completion` : 'Disabled'}</small>
         </span>
         <span className={`switch${armed ? ' on' : ''}`} />
       </button>
@@ -121,19 +127,24 @@ function OutputCard() {
   const sceneFolder = g.folderPattern.includes('{scene}')
   const nested = sp && sceneFolder && snap.jobs.some((j) => j.sceneName.toLowerCase() === sp.name.toLowerCase())
   return (
-    <section className="card" aria-label="저장">
+    <section className="card" aria-label="Output">
       <div className="card-head">
-        <h3>저장</h3>
+        <h3>Output</h3>
         {locked && (
-          <span className="lock-note" title="관리자가 고정한 설정입니다">
+          <span className="lock-note" title="These settings are locked by the administrator">
             <Lock />
-            관리자 설정
+            Locked settings
           </span>
         )}
       </div>
-      <div className="flabel">저장 폴더</div>
+      <div className="flabel">Output folder</div>
       <div className="pathrow">
-        <button className={`pathbtn${sp ? '' : ' empty'}`} onClick={pick} disabled={locked} title={g.outputRoot ? `${g.outputRoot}\n클릭하여 변경` : '저장 폴더 선택'}>
+        <button
+          className={`pathbtn${sp ? '' : ' empty'}`}
+          onClick={pick}
+          disabled={locked}
+          title={g.outputRoot ? `${g.outputRoot}\nClick to change` : 'Choose output folder'}
+        >
           <Folder />
           {sp ? (
             <span className="pb-text">
@@ -144,32 +155,52 @@ function OutputCard() {
             </span>
           ) : (
             <span className="pb-text">
-              <span className="pb-name">저장 폴더 선택</span>
+              <span className="pb-name">Choose output folder</span>
             </span>
           )}
         </button>
         {g.outputRoot && (
-          <button className="btn outline icon" title="폴더 열기" aria-label="저장 폴더 열기" onClick={() => window.rd.openPath(g.outputRoot)}>
+          <button
+            className="btn outline icon"
+            title="Open folder"
+            aria-label="Open output folder"
+            onClick={() => window.rd.openPath(g.outputRoot)}
+          >
             <FolderOpen />
           </button>
         )}
       </div>
       {nested ? (
         <p className="hint path-note warn">
-          씬 이름 폴더를 저장 폴더로 지정해 같은 이름의 폴더가 한 번 더 생깁니다.
+          The output folder already uses the scene name. This will create a second folder with the same name.
           {!locked && (
             <button className="link strong" onClick={() => window.rd.updateGlobal({ outputRoot: sp!.parent })}>
-              상위 폴더로 변경
+              Use parent folder
             </button>
           )}
         </p>
       ) : (
-        sp && <p className="hint path-note">{sceneFolder ? '씬마다 씬 이름 폴더를 만들어 저장합니다.' : g.folderPattern ? `${g.folderPattern} 폴더를 만들어 저장합니다.` : '폴더를 따로 만들지 않고 바로 저장합니다.'}</p>
+        sp && (
+          <p className="hint path-note">
+            {sceneFolder
+              ? 'Creates a separate folder for each scene.'
+              : g.folderPattern
+                ? `Creates output folders using ${g.folderPattern}.`
+                : 'Saves directly to the output folder.'}
+          </p>
+        )
       )}
-      <div className="flabel">파일 형식</div>
-      <div className="chips" role="radiogroup" aria-label="파일 형식">
+      <div className="flabel">File format</div>
+      <div className="chips" role="radiogroup" aria-label="File format">
         {FORMATS.map((f) => (
-          <button key={f} role="radio" aria-checked={g.format === f} className={`chip${g.format === f ? ' on' : ''}`} disabled={locked && g.format !== f} onClick={() => !locked && window.rd.updateGlobal({ format: f })}>
+          <button
+            key={f}
+            role="radio"
+            aria-checked={g.format === f}
+            className={`chip${g.format === f ? ' on' : ''}`}
+            disabled={locked && g.format !== f}
+            onClick={() => !locked && window.rd.updateGlobal({ format: f })}
+          >
             {FORMAT_INFO[f].label}
           </button>
         ))}
@@ -184,18 +215,20 @@ function OutputCard() {
 function NowCard() {
   const snap = useUi((s) => s.snap)!
   const active = snap.jobs.filter((j) => j.status === 'rendering')
-  const recent = [...snap.jobs].filter((j) => j.finishedAt && (j.status === 'done' || j.status === 'partial')).sort((a, b) => (b.finishedAt ?? 0) - (a.finishedAt ?? 0))[0]
+  const recent = [...snap.jobs]
+    .filter((j) => j.finishedAt && (j.status === 'done' || j.status === 'partial'))
+    .sort((a, b) => (b.finishedAt ?? 0) - (a.finishedAt ?? 0))[0]
   const list = active.length ? active : recent ? [recent] : []
   return (
-    <section className="card now" aria-label="미리보기">
+    <section className="card now" aria-label="Preview">
       <div className="card-head">
-        <h3>{active.length ? '렌더 중' : recent ? '최근 완료' : '미리보기'}</h3>
-        {active.length > 1 && <span className="count">{active.length}개 동시 실행</span>}
+        <h3>{active.length ? 'Rendering' : recent ? 'Latest frame' : 'Preview'}</h3>
+        {active.length > 1 && <span className="count">{active.length}concurrent tasks</span>}
       </div>
       {list.length === 0 ? (
         <div className="now-empty">
           <div className="thumb ph" />
-          <p className="hint">렌더 시작 후 최근 프레임이 표시됩니다.</p>
+          <p className="hint">The latest frame appears after rendering starts.</p>
         </div>
       ) : (
         <div className={`now-list${list.length > 1 ? ' compact' : ''}`}>
@@ -224,14 +257,26 @@ function NowItem({ job, recent }: { job: Job; recent: boolean }) {
   const cur = job.tasks.find((t) => t.status === 'running')
   return (
     <div className="now-item">
-      <div className="thumb">{p?.dataUrl ? <img src={p.dataUrl} alt={`${job.sceneName} 프레임 ${p.frame}`} /> : <span>{p?.message ?? '첫 프레임 대기 중'}</span>}</div>
+      <div className="thumb">
+        {p?.dataUrl ? (
+          <img src={p.dataUrl} alt={`${job.sceneName}, frame ${p.frame}`} />
+        ) : (
+          <span>{p?.message ?? 'Waiting for first frame'}</span>
+        )}
+      </div>
       <div className="now-info">
         <div className="now-name">{job.sceneName}</div>
         <div className={`gbar thin${recent && job.status === 'done' ? ' done' : ''}`}>
           <i style={{ width: `${pct}%` }} />
         </div>
         <div className="now-foot">
-          <span>{recent ? (job.status === 'done' ? `완료, ${duration(job.elapsedMs)}` : `빠진 프레임 ${num(job.missingFrames.length)}개`) : waitLabel(job) ?? (cur?.currentFrame != null ? `프레임 ${cur.currentFrame}` : '씬 여는 중')}</span>
+          <span>
+            {recent
+              ? job.status === 'done'
+                ? `Complete in ${duration(job.elapsedMs)}`
+                : `${num(job.missingFrames.length)} missing frames`
+              : (waitLabel(job) ?? (cur?.currentFrame != null ? `Frame ${cur.currentFrame}` : 'Opening scene'))}
+          </span>
           <span>
             {num(done)} / {num(total)}
           </span>

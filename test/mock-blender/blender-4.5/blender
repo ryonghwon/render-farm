@@ -68,7 +68,12 @@ function png(w, h, seed) {
   ihdr.writeUInt32BE(h, 4)
   ihdr[8] = 8
   ihdr[9] = 2
-  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw)), chunk('IEND', Buffer.alloc(0))])
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', ihdr),
+    chunk('IDAT', zlib.deflateSync(raw)),
+    chunk('IEND', Buffer.alloc(0))
+  ])
 }
 
 async function main() {
@@ -135,10 +140,19 @@ async function main() {
     if (S) out('@@RQ:FRAME_START ' + f)
     for (let p = 1; p <= 4; p++) {
       await sleep(speed / 4)
-      out(`Fra:${f} Mem:120.5M (Peak 140.2M) | Time:00:00.${String(p * 10).padStart(2, '0')} | Remaining:00:00.30 | Mem:20.1M, Peak:22.0M | Shot, ViewLayer | Sample ${p * 4}/16`)
+      out(
+        `Fra:${f} Mem:120.5M (Peak 140.2M) | Time:00:00.${String(p * 10).padStart(2, '0')} | Remaining:00:00.30 | Mem:20.1M, Peak:22.0M | Shot, ViewLayer | Sample ${p * 4}/16`
+      )
     }
     if (cfg.fail === String(f)) {
-      const flag = path.join(os.tmpdir(), 'rd-mockbl-' + require('node:crypto').createHash('sha1').update(path.resolve(scene) + ':' + f).digest('hex'))
+      const flag = path.join(
+        os.tmpdir(),
+        'rd-mockbl-' +
+          require('node:crypto')
+            .createHash('sha1')
+            .update(path.resolve(scene) + ':' + f)
+            .digest('hex')
+      )
       if (cfg.once === undefined || !fs.existsSync(flag)) {
         if (cfg.once !== undefined) fs.writeFileSync(flag, '1')
         err('Error: EXCEPTION_ACCESS_VIOLATION')

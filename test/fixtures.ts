@@ -87,7 +87,10 @@ export function makeProject(root: string): { project: string; scenes: string; ou
   const out = path.join(root, 'renders')
   fs.mkdirSync(scenes, { recursive: true })
   fs.mkdirSync(path.join(project, 'assets'), { recursive: true })
-  fs.writeFileSync(path.join(project, 'workspace.mel'), '//Maya 2025 Project Definition\nworkspace -fr "scene" "scenes";\nworkspace -fr "images" "images";\n')
+  fs.writeFileSync(
+    path.join(project, 'workspace.mel'),
+    '//Maya 2025 Project Definition\nworkspace -fr "scene" "scenes";\nworkspace -fr "images" "images";\n'
+  )
   fs.writeFileSync(path.join(project, 'assets', 'char_rig.mb'), 'FOR4')
   return { project, scenes, out }
 }

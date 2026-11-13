@@ -46,24 +46,29 @@ export function Header() {
       <div className="add-wrap" ref={ref}>
         <button className="btn outline" onClick={() => setMenu((v) => !v)} aria-haspopup="menu" aria-expanded={menu}>
           <Plus />
-          씬 추가
+          Add scenes
           <ChevronDown className="chev" />
         </button>
         {menu && (
           <div className="menu" role="menu" style={{ position: 'absolute', top: 44, left: 0 }}>
             <button role="menuitem" onClick={() => add('files')}>
               <FilePlus2 />
-              파일 추가…
+              Add files…
             </button>
             <button role="menuitem" onClick={() => add('folder')}>
               <FolderPlus />
-              폴더 추가…
+              Add folder…
             </button>
           </div>
         )}
       </div>
       <span className="spacer" />
-      <button className="btn outline icon" onClick={openSettingsGuarded} title={snap.lock.locked ? '환경 설정 (잠김)' : '환경 설정'} aria-label="환경 설정">
+      <button
+        className="btn outline icon"
+        onClick={openSettingsGuarded}
+        title={snap.lock.locked ? 'Preferences (locked)' : 'Preferences'}
+        aria-label="Preferences"
+      >
         {snap.lock.locked ? <Lock /> : <Settings2 />}
       </button>
       <div className="transport">
@@ -72,23 +77,23 @@ export function Header() {
             {paused ? (
               <button className="btn outline" onClick={() => window.rd.resume()}>
                 <Play />
-                이어서 렌더
+                Resume
               </button>
             ) : (
-              <button className="btn outline" onClick={() => window.rd.pause()} title="진행 중인 씬을 마친 뒤 멈춤">
+              <button className="btn outline" onClick={() => window.rd.pause()} title="Pause after active scenes finish">
                 <Pause />
-                잠시 멈춤
+                Pause
               </button>
             )}
-            <button className="btn outline danger" onClick={() => window.rd.stop()} title="즉시 중지. 다시 시작하면 남은 프레임부터 이어서 렌더">
+            <button className="btn outline danger" onClick={() => window.rd.stop()} title="Stop now. Restart to resume remaining frames.">
               <Square />
-              중지
+              Stop
             </button>
           </>
         ) : (
           <button className="btn primary" disabled={!ready} onClick={() => requestStart()}>
             <Play fill="currentColor" />
-            렌더 시작
+            Start render
           </button>
         )}
       </div>

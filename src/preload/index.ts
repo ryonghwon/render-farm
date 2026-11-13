@@ -1,5 +1,15 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import type { AppInfo, AppSettings, CompletionAction, JobPatch, LogLine, Preset, PreviewInfo, RenderSettings, Snapshot } from '../shared/types'
+import type {
+  AppInfo,
+  AppSettings,
+  CompletionAction,
+  JobPatch,
+  LogLine,
+  Preset,
+  PreviewInfo,
+  RenderSettings,
+  Snapshot
+} from '../shared/types'
 
 type AddResult = { added: number; skipped: number }
 

@@ -27,16 +27,34 @@ export function formatSupported(renderer: string): boolean {
 
 export function resolvedPrefix(settings: RenderSettings, job: Job): string {
   const camera = settings.camera || job.info.cameras.find((c) => c.renderable)?.name || 'camera'
-  return resolveTokens(settings.filePrefix || '{scene}', { scene: job.sceneName, camera, project: job.project ? path.basename(job.project) : '' })
+  return resolveTokens(settings.filePrefix || '{scene}', {
+    scene: job.sceneName,
+    camera,
+    project: job.project ? path.basename(job.project) : ''
+  })
 }
 
 export function resolvedOutputDir(settings: RenderSettings, job: Job): string {
   const camera = settings.camera || job.info.cameras.find((c) => c.renderable)?.name || 'camera'
-  const sub = resolveTokens(settings.folderPattern || '', { scene: job.sceneName, camera, project: job.project ? path.basename(job.project) : '' })
+  const sub = resolveTokens(settings.folderPattern || '', {
+    scene: job.sceneName,
+    camera,
+    project: job.project ? path.basename(job.project) : ''
+  })
   return path.normalize(sub ? path.join(settings.outputRoot, sub) : settings.outputRoot)
 }
 
-const BLENDER_EXT: Record<string, string> = { targa: 'tga', iris: 'rgb', bmp: 'bmp', hdr: 'hdr', webp: 'webp', dpx: 'dpx', cineon: 'cin', jp2: 'jp2', avif: 'avif' }
+const BLENDER_EXT: Record<string, string> = {
+  targa: 'tga',
+  iris: 'rgb',
+  bmp: 'bmp',
+  hdr: 'hdr',
+  webp: 'webp',
+  dpx: 'dpx',
+  cineon: 'cin',
+  jp2: 'jp2',
+  avif: 'avif'
+}
 
 export function expectedExt(settings: RenderSettings, job: Job): string {
   if (settings.format !== 'scene') return settings.format
