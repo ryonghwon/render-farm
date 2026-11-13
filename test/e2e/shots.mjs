@@ -3,12 +3,53 @@ import path from 'node:path'
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
+function rewritePaths(map) {
+  const fix = (t) => {
+    for (const [from, to] of map) {
+      let i = t.indexOf(from)
+      while (i >= 0) {
+        let j = i + from.length
+        while (j < t.length && !/[\s,)]/.test(t[j])) j++
+        const rest = t.slice(i + from.length, j).split('/').join('\\')
+        t = t.slice(0, i) + to + rest + t.slice(j)
+        i = t.indexOf(from, i + to.length + rest.length)
+      }
+    }
+    return t
+  }
+  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
+  let n
+  while ((n = w.nextNode())) {
+    const v = fix(n.nodeValue)
+    if (v !== n.nodeValue) n.nodeValue = v
+  }
+  document.querySelectorAll('input').forEach((el) => {
+    const v = fix(el.value)
+    if (v !== el.value) el.value = v
+  })
+}
+
 export default async function run({ engine, win, app }) {
   const m = JSON.parse(fs.readFileSync(process.env.RENDERFARM_E2E_MANIFEST, 'utf8'))
   fs.mkdirSync(m.shots, { recursive: true })
   const js = (code) => win.webContents.executeJavaScript(code)
+  const docsMap = [
+    [m.mock, 'C:\\Program Files\\Autodesk\\Maya2025\\bin\\Render.exe'],
+    [m.mockBlender, 'C:\\Program Files\\Blender Foundation\\Blender 5.2\\blender.exe'],
+    [m.data, 'C:\\Users\\Student\\AppData\\Roaming\\RenderFarm'],
+    [m.out, 'C:\\Users\\Student\\Documents\\renders'],
+    [m.project, 'D:\\Projects\\SQ_Animation'],
+    [m.root + '/', 'C:\\Users\\Student\\Documents\\'],
+    ['\u2026/project/', '\u2026\\SQ_Animation\\']
+  ].sort((a, b) => b[0].length - a[0].length)
+  const docsPaths = () => js(`(${rewritePaths.toString()})(${JSON.stringify(docsMap)})`)
   const shot = async (name) => {
     await sleep(500)
+    if (process.env.RENDERFARM_E2E_DOCS) {
+      await docsPaths()
+      await js('new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))')
+      await sleep(150)
+    }
     const img = await win.webContents.capturePage()
     fs.writeFileSync(path.join(m.shots, `${name}.png`), img.toPNG())
     console.log('shot', name)

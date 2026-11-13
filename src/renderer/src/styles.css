@@ -60,6 +60,8 @@ body {
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
   user-select: none;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
   font-variant-numeric: tabular-nums;
 }
 
