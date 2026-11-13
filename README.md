@@ -4,7 +4,7 @@
 
 <h1 align="center">렌더팜</h1>
 
-<p align="center">Maya, Blender 배치 렌더 매니저</p>
+<p align="center">Render Farm, Maya와 Blender 배치 렌더 매니저</p>
 
 <p align="center">
   <a href="https://github.com/ryonghwon/renderfarm/releases/latest"><img src="https://img.shields.io/github/v/release/ryonghwon/renderfarm?label=release&color=2383e2" alt="release"></a>
@@ -35,8 +35,8 @@
 | 항목 | 지원 범위 |
 | --- | --- |
 | 운영체제 | Windows 10, 11 (x64) |
-| Maya | `Render.exe` 포함 설치본. Arnold 검증 완료, V-Ray와 Redshift는 씬 설정 형식으로 출력 |
-| Blender | 4.5 이상. 4.5, 5.2 검증 완료 |
+| Maya | `Render.exe` 포함 설치본 (Arnold, V-Ray, Redshift) |
+| Blender | 4.5 이상 (Cycles, EEVEE) |
 
 ## 설치
 
@@ -46,8 +46,6 @@
 | --- | --- |
 | `RenderFarm-Setup-<version>.exe` | 설치형. 시작 메뉴와 바탕 화면 바로 가기 생성 |
 | `RenderFarm-Portable-<version>.exe` | 단일 실행 파일. 실습실 공용 PC 권장 |
-
-코드 서명이 적용되지 않은 빌드이므로 첫 실행 시 Microsoft Defender SmartScreen 경고가 표시됩니다. **추가 정보 > 실행**으로 진행합니다.
 
 Maya와 Blender는 아래 경로에서 자동 탐지합니다. 그 외 경로는 **환경 설정 > 프로그램**에서 등록합니다.
 
@@ -145,15 +143,6 @@ Maya와 Blender는 아래 경로에서 자동 탐지합니다. 그 외 경로는
 | 설정, 렌더 목록 | `%APPDATA%\RenderFarm\state.json` |
 | 렌더 로그 | `%APPDATA%\RenderFarm\logs\<작업 ID>` |
 
-## 문제 해결
-
-| 증상 | 확인 사항 |
-| --- | --- |
-| 프로그램을 찾지 못함 | 기본 경로 외 설치본은 **환경 설정 > 프로그램**에서 실행 파일 직접 등록 |
-| Arnold 라이선스 오류 | 이전 렌더 종료 직후 라이선스 미반환 상태. 반환 대기 후 자동 재렌더 |
-| 경로 경고 | Maya 씬 또는 저장 경로에 영문 외 문자 포함. 영문 경로 사용 권장 |
-| 빠진 프레임 표시 | 씬 행의 **빠진 프레임 다시 렌더** 실행. 원인은 로그의 Maya, Blender 원본 출력에서 확인 |
-
 ## 개발
 
 ```bash
@@ -163,10 +152,6 @@ npm test             # 렌더 엔진 테스트
 npm run typecheck    # 타입 검사
 npm run dist:win     # Windows 설치 파일, 포터블 실행 파일
 ```
-
-### 릴리스
-
-`package.json`의 버전과 같은 태그(`v<version>`)로 GitHub 릴리스를 발행하면 GitHub Actions가 테스트, Windows 빌드, 파일 첨부를 수행합니다. `docs/releases/<태그>.md`가 있으면 릴리스 설명에 반영됩니다.
 
 ### 구조
 
