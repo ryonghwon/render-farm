@@ -3,9 +3,11 @@
 <p align="center">A local render queue for Maya and Blender. Windows and macOS.</p>
 <p align="center"><a href="https://github.com/ryonghwon/render-farm/releases">Download</a> · <a href="docs/USAGE.md">User guide</a> · <a href="docs/CONFIGURATION.md">Configuration</a> · <a href="docs/BUILD.md">Build</a></p>
 
-Render Farm runs Maya and Blender scenes through the applications installed on your computer. Add scenes, choose an output folder, review scene checks, and render the queue. Frame tracking, missing-frame retries, and saved queue state support long sessions and interrupted work.
+Render Farm brings Maya and Blender scenes into one local render queue. Set a common output folder, adjust individual scenes, and run the queue through the render applications already installed on your computer. Progress, frame counts, and logs stay in the same workspace, so you can check a long render without switching between command windows.
 
-![Render queue](docs/screenshots/overview.jpg)
+The queue is saved between sessions. If rendering stops, completed frames remain on disk and unfinished ranges can be resumed. Rendered images go directly to your chosen folder, ready for compositing or review.
+
+![Render queue](docs/images/render-queue.png)
 
 ## Features
 
@@ -53,8 +55,10 @@ Maya or Blender must be installed separately, with any required render plugins a
 | [Build](docs/BUILD.md) | Source setup, tests, packaging, and signing |
 | [Architecture](docs/ARCHITECTURE.md) | Process boundaries, scheduling, persistence, and renderer integration |
 
-## Screens
+## Interface guides
+
+These illustrations use an example project to show the main controls. See the user guide for the complete workflow.
 
 | Scene settings | Processing preferences |
 | --- | --- |
-| ![Scene settings](docs/screenshots/scene-settings.jpg) | ![Processing preferences](docs/screenshots/settings.jpg) |
+| ![Scene settings](docs/images/scene-settings.png) | ![Processing preferences](docs/images/processing.png) |

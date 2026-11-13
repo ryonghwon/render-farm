@@ -1,7 +1,7 @@
 {
   "name": "render-farm",
   "productName": "Render Farm",
-  "version": "0.2.0",
+  "version": "0.1.0",
   "description": "Local batch rendering for Maya and Blender on Windows and macOS",
   "main": "./out/main/index.js",
   "author": "Kim Yongwon",

@@ -1,6 +1,6 @@
 # Configuration
 
-Open **Preferences** from the toolbar.
+Open **Preferences** from the toolbar. Use these settings to choose render applications, control workstation resources, and define defaults for the queue. A scene override takes precedence over its corresponding default.
 
 ## Applications
 
@@ -23,9 +23,9 @@ Presets store output and advanced render defaults. Per-scene overrides take prec
 
 ## Processing
 
-- **Parallel rendering** controls the number of active render processes.
+- **Parallel rendering** controls the number of active render processes. Start with one task for memory-heavy scenes, then increase the limit if the workstation has enough capacity.
 - **Threads per task** limits CPU threads when supported. Automatic allocation accounts for concurrency.
-- **Chunk size** splits a scene into ranges that can occupy separate slots.
+- **Chunk size** splits a scene into ranges that can occupy separate slots. Smaller ranges make long scenes easier to distribute across local tasks, but each task must load the scene. A value of `0` keeps the scene in one task.
 - **Retry failed frames** limits automatic retries for missing frames and renderer crashes.
 - **Skip existing frames** avoids rendering frames already found in the output sequence.
 
